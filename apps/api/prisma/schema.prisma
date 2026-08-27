@@ -1,0 +1,803 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -------------------------------------------------------------
+// Core Multitenancy & Authentication
+// -------------------------------------------------------------
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  username     String       @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  mobileNumber String?
+  isActive     Boolean      @default(true)
+  memberships  Membership[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([email])
+  @@index([username])
+}
+
+model Organization {
+  id           String        @id @default(uuid())
+  name         String
+  legalName    String?
+  businessType String        // RETAIL, SUPERMARKET, WHOLESALE, RESTAURANT, SERVICE, PHARMACY
+  logoUrl      String?
+  phone        String?
+  email        String?
+  address      String?
+  city         String?
+  state        String?
+  pinCode      String?
+  country      String        @default("India")
+  currency     String        @default("INR")
+  timezone     String        @default("Asia/Kolkata")
+  gstStatus    Boolean       @default(false)
+  gstin        String?
+  brandingUpdatedAt DateTime?
+  logoStorageKey    String?
+
+  memberships       Membership[]
+  branches          Branch[]
+  registers         Register[]
+  roles             Role[]
+  businessSettings  BusinessSettings?
+  taxSettings       TaxSettings?
+  documentSettings  DocumentSettings?
+  customers         Customer[]
+  suppliers         Supplier[]
+  products          Product[]
+  stockLedgers      StockLedger[]
+  inventoryBalances InventoryBalance[]
+  quotations        Quotation[]
+  invoices          Invoice[]
+  payments          Payment[]
+  receipts          Receipt[]
+  purchaseOrders    PurchaseOrder[]
+  cashierShifts     CashierShift[]
+  auditLogs         AuditLog[]
+  syncMutations     SyncMutation[]
+
+  // Industry Extensions
+  restaurantTables  RestaurantTable[]
+  kots              KitchenOrderTicket[]
+  customerAssets    CustomerAsset[]
+  serviceJobCards   ServiceJobCard[]
+  medicines         MedicineMaster[]
+  medicineBatches   MedicineBatch[]
+  wholesaleOrders   WholesaleSalesOrder[]
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([businessType])
+}
+
+model Branch {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  code           String
+  address        String?
+  city           String?
+  state          String?
+  phone          String?
+  isMain         Boolean      @default(false)
+  isActive       Boolean      @default(true)
+
+  registers         Register[]
+  memberships       Membership[]
+  invoices          Invoice[]
+  quotations        Quotation[]
+  payments          Payment[]
+  receipts          Receipt[]
+  stockLedgers      StockLedger[]
+  inventoryBalances InventoryBalance[]
+  purchaseOrders    PurchaseOrder[]
+  cashierShifts     CashierShift[]
+  restaurantTables  RestaurantTable[]
+  kots              KitchenOrderTicket[]
+  serviceJobCards   ServiceJobCard[]
+  medicineBatches   MedicineBatch[]
+  wholesaleOrders   WholesaleSalesOrder[]
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+model Register {
+  id             String        @id @default(uuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId       String
+  branch         Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name           String
+  code           String
+  isActive       Boolean       @default(true)
+  cashierShifts  CashierShift[]
+
+  @@unique([branchId, code])
+  @@index([organizationId, branchId])
+}
+
+model Role {
+  id             String        @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  roleType       String        // OWNER, MANAGER, CASHIER, ACCOUNTANT, INVENTORY_STAFF, TECHNICIAN, SUPER_ADMIN, CUSTOM
+  permissions    String[]      // JSON Array of permission strings
+  isSystem       Boolean       @default(false)
+  memberships    Membership[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId, roleType])
+}
+
+model Membership {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId       String?
+  branch         Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  roleId         String
+  role           Role         @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  isActive       Boolean      @default(true)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, organizationId, branchId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+// -------------------------------------------------------------
+// Settings
+// -------------------------------------------------------------
+
+model BusinessSettings {
+  id               String       @id @default(uuid())
+  organizationId   String       @unique
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  industrySettings Json         @default("{}")
+  updatedAt        DateTime     @updatedAt
+}
+
+model TaxSettings {
+  id              String       @id @default(uuid())
+  organizationId  String       @unique
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  taxMode         String       @default("EXCLUSIVE") // INCLUSIVE, EXCLUSIVE
+  defaultRates    Int[]        @default([0, 5, 12, 18, 28])
+  enableCess      Boolean      @default(false)
+  defaultCessRate Float        @default(0)
+  updatedAt       DateTime     @updatedAt
+}
+
+model DocumentSettings {
+  id                   String       @id @default(uuid())
+  organizationId       String       @unique
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoicePrefix        String       @default("INV")
+  quotationPrefix      String       @default("QTN")
+  receiptPrefix        String       @default("RCP")
+  enableRoundOff       Boolean      @default(true)
+  defaultReceiptFormat String       @default("80MM") // 58MM, 80MM, A4
+  defaultTerms         String?
+  updatedAt            DateTime     @updatedAt
+}
+
+// -------------------------------------------------------------
+// Master Data: Customers, Suppliers, Products & Stock
+// -------------------------------------------------------------
+
+model Customer {
+  id                 String               @id @default(uuid())
+  organizationId     String
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name               String
+  phone              String
+  email              String?
+  gstin              String?
+  address            String?
+  city               String?
+  state              String?
+  creditLimit        Float                @default(0)
+  currentOutstanding Float                @default(0)
+  loyaltyPoints      Int                  @default(0)
+  ledger             CustomerLedger[]
+  invoices           Invoice[]
+  quotations         Quotation[]
+  assets             CustomerAsset[]
+  serviceJobCards    ServiceJobCard[]
+  wholesaleOrders    WholesaleSalesOrder[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([organizationId, phone])
+  @@index([organizationId, name])
+}
+
+model CustomerLedger {
+  id              String       @id @default(uuid())
+  organizationId  String
+  customerId      String
+  customer        Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  transactionType String       // INVOICE_DEBIT, PAYMENT_CREDIT, RETURN_CREDIT, ADJUSTMENT
+  amount          Float
+  balanceAfter    Float
+  referenceId     String?
+  notes           String?
+  createdAt       DateTime     @default(now())
+
+  @@index([organizationId, customerId])
+}
+
+model Supplier {
+  id             String          @id @default(uuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  contactPerson  String?
+  phone          String
+  email          String?
+  gstin          String?
+  address        String?
+  currentPayable Float           @default(0)
+  purchaseOrders PurchaseOrder[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId, name])
+}
+
+model Product {
+  id                String             @id @default(uuid())
+  organizationId    String
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name              String
+  sku               String
+  barcode           String?
+  category          String?
+  brand             String?
+  unit              String             @default("PCS")
+  costPrice         Float              @default(0)
+  sellingPrice      Float              @default(0)
+  mrp               Float?
+  taxRate           Float              @default(0)
+  hsn               String?
+  isBatchTracked    Boolean            @default(false)
+  isWeightBased     Boolean            @default(false)
+  hasVariants       Boolean            @default(false)
+  minStockAlert     Float              @default(5)
+  currentStock      Float              @default(0)
+  variants          ProductVariant[]
+  stockLedgers      StockLedger[]
+  inventoryBalances InventoryBalance[]
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([organizationId, sku])
+  @@index([organizationId, barcode])
+  @@index([organizationId, name])
+}
+
+model ProductVariant {
+  id                String             @id @default(uuid())
+  productId         String
+  product           Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku               String
+  barcode           String?
+  name              String
+  costPrice         Float              @default(0)
+  sellingPrice      Float              @default(0)
+  mrp               Float?
+  attributes        Json               @default("{}")
+  currentStock      Float              @default(0)
+  stockLedgers      StockLedger[]
+  inventoryBalances InventoryBalance[]
+
+  @@unique([productId, sku])
+  @@index([barcode])
+}
+
+model StockLedger {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId       String
+  branch         Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId      String?
+  variant        ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  eventType      String       // PURCHASE_RECEIPT, SALE, SALE_RETURN, PURCHASE_RETURN, BRANCH_TRANSFER_OUT, BRANCH_TRANSFER_IN, ADJUSTMENT, DAMAGE, WASTAGE, RECIPE_CONSUMPTION
+  quantityChange Float
+  balanceAfter   Float
+  referenceType  String?      // INVOICE, GRN, TRANSFER, ADJUSTMENT
+  referenceId    String?
+  unitCost       Float        @default(0)
+  batchNumber    String?
+  expiryDate     DateTime?
+  notes          String?
+  createdById    String
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, branchId, productId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+model InventoryBalance {
+  id                String          @id @default(uuid())
+  organizationId    String
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId          String
+  branch            Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId         String?
+  variant           ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  quantity          Float           @default(0)
+  reservedQuantity  Float           @default(0)
+  availableQuantity Float           @default(0)
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([branchId, productId, variantId])
+  @@index([organizationId, branchId])
+}
+
+// -------------------------------------------------------------
+// Billing & Financial Core: Quotation, Invoice, Payment, Receipt
+// -------------------------------------------------------------
+
+model Quotation {
+  id              String          @id @default(uuid())
+  organizationId  String
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId        String
+  branch          Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  quotationNumber String
+  customerId      String?
+  customer        Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName    String
+  status          String          @default("DRAFT") // DRAFT, SENT, ACCEPTED, REJECTED, CONVERTED
+  subtotal        Float           @default(0)
+  taxTotal        Float           @default(0)
+  grandTotal      Float           @default(0)
+  validUntil      DateTime?
+  lines           QuotationLine[]
+  convertedInvoice Invoice?
+  createdById     String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([organizationId, quotationNumber])
+  @@index([organizationId, branchId])
+}
+
+model QuotationLine {
+  id             String    @id @default(uuid())
+  quotationId    String
+  quotation      Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productId      String?
+  name           String
+  hsn            String?
+  quantity       Float
+  unitPrice      Float
+  discountAmount Float     @default(0)
+  taxRate        Float     @default(0)
+  lineTotal      Float
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId       String
+  branch         Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  registerId     String?
+  invoiceNumber  String
+  quotationId    String?       @unique
+  quotation      Quotation?    @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+  customerId     String?
+  customer       Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName   String        @default("Walk-in Customer")
+  customerPhone  String?
+  customerGstin  String?
+  isB2B          Boolean       @default(false)
+  isInterState   Boolean       @default(false)
+  status         String        @default("ISSUED") // DRAFT, ISSUED, PARTIALLY_PAID, PAID, CANCELLED, VOID
+
+  subtotal       Float         @default(0)
+  discountTotal  Float         @default(0)
+  cgstTotal      Float         @default(0)
+  sgstTotal      Float         @default(0)
+  igstTotal      Float         @default(0)
+  cessTotal      Float         @default(0)
+  taxTotal       Float         @default(0)
+  roundOff       Float         @default(0)
+  grandTotal     Float         @default(0)
+  paidAmount     Float         @default(0)
+  balanceAmount  Float         @default(0)
+  notes          String?
+  createdById    String
+  idempotencyKey String?       @unique
+
+  lines          InvoiceLine[]
+  payments       Payment[]
+  receipts       Receipt[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([organizationId, invoiceNumber])
+  @@index([organizationId, branchId, status])
+  @@index([createdAt])
+  @@index([customerId])
+}
+
+model InvoiceLine {
+  id             String    @id @default(uuid())
+  invoiceId      String
+  invoice        Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId      String?
+  variantId      String?
+  name           String
+  sku            String?
+  hsn            String?
+  quantity       Float
+  unit           String    @default("PCS")
+  unitPrice      Float
+  discountRate   Float?
+  discountAmount Float     @default(0)
+  taxRate        Float     @default(0)
+  taxMode        String    @default("EXCLUSIVE") // INCLUSIVE, EXCLUSIVE
+  taxableAmount  Float     @default(0)
+  cgstAmount     Float     @default(0)
+  sgstAmount     Float     @default(0)
+  igstAmount     Float     @default(0)
+  cessAmount     Float     @default(0)
+  totalTax       Float     @default(0)
+  lineSubtotal   Float     @default(0)
+  lineTotal      Float
+  batchNumber    String?
+  expiryDate     DateTime?
+  notes          String?
+
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+model Payment {
+  id              String       @id @default(uuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId        String
+  branch          Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  invoiceId       String
+  invoice         Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  receiptNumber   String
+  amount          Float
+  method          String       // CASH, UPI, CARD, BANK_TRANSFER, CUSTOMER_CREDIT, SPLIT
+  status          String       @default("COMPLETED") // PENDING, COMPLETED, FAILED, REFUNDED, CANCELLED
+  splitDetails    Json?
+  referenceNumber String?
+  receivedById    String
+  notes           String?
+  receipts        Receipt[]
+
+  createdAt       DateTime     @default(now())
+
+  @@index([organizationId, branchId])
+  @@index([invoiceId])
+  @@index([method])
+  @@index([createdAt])
+}
+
+model Receipt {
+  id               String       @id @default(uuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId         String
+  branch           Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  invoiceId        String
+  invoice          Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paymentId        String
+  payment          Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  receiptNumber    String
+  customerName     String
+  amountPaid       Float
+  paymentMethod    String
+  remainingBalance Float        @default(0)
+  cashierName      String
+  issuedAt         DateTime     @default(now())
+
+  @@unique([organizationId, receiptNumber])
+  @@index([organizationId, invoiceId])
+}
+
+// -------------------------------------------------------------
+// Purchases & Shifts
+// -------------------------------------------------------------
+
+model PurchaseOrder {
+  id             String              @id @default(uuid())
+  organizationId String
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId       String
+  branch         Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  poNumber       String
+  supplierId     String
+  supplier       Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplierName   String
+  status         String              @default("DRAFT") // DRAFT, APPROVED, PARTIALLY_RECEIVED, COMPLETED, CANCELLED
+  subtotal       Float               @default(0)
+  taxTotal       Float               @default(0)
+  grandTotal     Float               @default(0)
+  expectedDate   DateTime?
+  items          PurchaseOrderItem[]
+  createdById    String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@unique([organizationId, poNumber])
+  @@index([organizationId, branchId])
+}
+
+model PurchaseOrderItem {
+  id               String        @id @default(uuid())
+  purchaseOrderId  String
+  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId        String
+  name             String
+  quantityOrdered  Float
+  quantityReceived Float         @default(0)
+  unitCost         Float
+  taxRate          Float         @default(0)
+  total            Float
+}
+
+model CashierShift {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId       String
+  branch         Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  registerId     String
+  register       Register     @relation(fields: [registerId], references: [id], onDelete: Cascade)
+  cashierId      String
+  cashierName    String
+  openingCash    Float        @default(0)
+  closingCash    Float?
+  actualCash     Float?
+  cashDifference Float?
+  shiftStatus    String       @default("OPEN") // OPEN, CLOSED
+  openedAt       DateTime     @default(now())
+  closedAt       DateTime?
+  notes          String?
+
+  @@index([organizationId, branchId, cashierId])
+  @@index([shiftStatus])
+}
+
+// -------------------------------------------------------------
+// Industry Specific Models
+// -------------------------------------------------------------
+
+// 1. Restaurant / Cafe
+model RestaurantTable {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId       String
+  branch         Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tableNumber    String
+  capacity       Int          @default(4)
+  section        String       @default("Ground Floor")
+  status         String       @default("AVAILABLE") // AVAILABLE, OCCUPIED, KOT_SENT, PREPARING, READY, BILLED, PAID
+  activeOrderId  String?
+  isActive       Boolean      @default(true)
+
+  @@unique([branchId, tableNumber])
+  @@index([organizationId, branchId])
+}
+
+model KitchenOrderTicket {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId       String
+  branch         Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  kotNumber      String
+  tableNumber    String
+  orderId        String
+  items          Json         // Array of items { menuItemId, name, quantity, modifiers, notes, status }
+  waiterName     String?
+  status         String       @default("NEW") // NEW, PREPARING, READY, SERVED, CANCELLED
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, kotNumber])
+  @@index([organizationId, branchId, status])
+}
+
+// 2. Service / Repair
+model CustomerAsset {
+  id              String           @id @default(uuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customerId      String
+  customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  assetType       String           // Mobile, Laptop, AC, Car, General
+  brand           String
+  model           String
+  serialNumber    String?
+  imeiNumber      String?
+  vehicleNumber   String?
+  conditionNotes  String?
+  createdAt       DateTime         @default(now())
+
+  @@index([organizationId, customerId])
+}
+
+model ServiceJobCard {
+  id              String       @id @default(uuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId        String
+  branch          Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  jobNumber       String
+  customerId      String
+  customer        Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerName    String
+  customerPhone   String
+  assetDetails    Json         // { assetType, brand, model, serialNumber, imeiNumber }
+  complaint       String
+  inspectionNotes String?
+  status          String       @default("RECEIVED") // RECEIVED, INSPECTION, WAITING_APPROVAL, APPROVED, IN_PROGRESS, WAITING_PART, READY, COMPLETED, DELIVERED, CANCELLED
+  technicianId    String?
+  technicianName  String?
+  estimatedAmount Float        @default(0)
+  approvedAmount  Float?
+  advancePaid     Float        @default(0)
+  partsUsed       Json         @default("[]") // [{ name, quantity, cost, sellingPrice }]
+  labourCharges   Float        @default(0)
+  finalInvoiceId  String?
+  deliveryDate    DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([organizationId, jobNumber])
+  @@index([organizationId, branchId, status])
+}
+
+// 3. Pharmacy
+model MedicineMaster {
+  id             String          @id @default(uuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  genericName    String
+  manufacturer   String
+  dosageForm     String          @default("Tablet")
+  hsn            String          @default("3004")
+  taxRate        Float           @default(12)
+  mrp            Float           @default(0)
+  currentStock   Float           @default(0)
+  batches        MedicineBatch[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId, name])
+  @@index([organizationId, genericName])
+}
+
+model MedicineBatch {
+  id                String         @id @default(uuid())
+  organizationId    String
+  organization      Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId          String
+  branch            Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  medicineId        String
+  medicine          MedicineMaster @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  medicineName      String
+  batchNumber       String
+  manufacturingDate DateTime
+  expiryDate        DateTime
+  purchaseRate      Float          @default(0)
+  sellingRate       Float          @default(0)
+  mrp               Float          @default(0)
+  quantityRemaining Float          @default(0)
+  isExpired         Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+
+  @@unique([branchId, medicineId, batchNumber])
+  @@index([organizationId, branchId, expiryDate])
+  @@index([isExpired])
+}
+
+// 4. Wholesale
+model WholesaleSalesOrder {
+  id              String       @id @default(uuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId        String
+  branch          Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orderNumber     String
+  customerId      String
+  customer        Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerName    String
+  salesmanName    String?
+  status          String       @default("ORDER_PLACED") // ORDER_PLACED, STOCK_ALLOCATED, DISPATCHED, INVOICED, CANCELLED
+  totalAmount     Float        @default(0)
+  dispatchDetails Json?        // { dispatchDate, vehicleNo, transporterName, challanNumber }
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([organizationId, orderNumber])
+  @@index([organizationId, branchId, status])
+}
+
+// -------------------------------------------------------------
+// Offline Sync & Enterprise Security / Audit Logs
+// -------------------------------------------------------------
+
+model SyncMutation {
+  id                   String       @id // Client-generated clientTransactionId (UUID/idempotency key)
+  organizationId       String
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId             String
+  entityType           String       // INVOICE, PAYMENT, CUSTOMER, STOCK_LEDGER, RESTAURANT_ORDER, SERVICE_JOB
+  operation            String       // CREATE, UPDATE, DELETE
+  payload              Json
+  clientTimestamp      BigInt
+  syncState            String       @default("PENDING") // PENDING, SYNCING, SYNCED, CONFLICT, FAILED
+  errorMessage         String?
+  serverAssignedId     String?
+  serverAssignedNumber String?
+  createdAt            DateTime     @default(now())
+
+  @@index([organizationId, branchId, syncState])
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId       String?
+  userId         String?
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName       String
+  action         String       // AUTH_LOGIN, ORG_CREATE, INVOICE_CREATE, INVOICE_VOID, STOCK_ADJUST, ROLE_CHANGE
+  entityType     String
+  entityId       String?
+  details        Json?
+  ipAddress      String?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, entityType])
+  @@index([createdAt])
+}

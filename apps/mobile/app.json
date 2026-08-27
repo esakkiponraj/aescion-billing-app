@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "AESCION Commerce Mobile POS",
+    "slug": "aescion-mobile-pos",
+    "scheme": "aescion",
+    "version": "2.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "ios": {
+      "bundleIdentifier": "com.aescion.commerce",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.aescion.commerce"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

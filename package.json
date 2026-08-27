@@ -1,0 +1,30 @@
+{
+  "name": "aescion-commerce",
+  "version": "2.0.0",
+  "private": true,
+  "description": "AESCION Commerce - Multi-Tenant Business Operating System & POS Platform",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:packages": "npm run --workspace=@aescion/shared-types build && npm run --workspace=@aescion/shared-utils build && npm run --workspace=@aescion/capability-config build && npm run --workspace=@aescion/validation build",
+    "dev:api": "npm run --workspace=apps/api start:dev",
+    "dev:desktop": "npm run --workspace=apps/desktop dev",
+    "build:all": "npm run build:packages && npm run --workspace=apps/api build && npm run --workspace=apps/desktop build",
+    "prisma:generate": "npm run --workspace=apps/api prisma:generate",
+    "prisma:migrate": "npm run --workspace=apps/api prisma:migrate",
+    "test": "npm run --workspaces --if-present test"
+  },
+  "devDependencies": {
+    "archiver": "^8.0.0",
+    "docx": "^9.7.1",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "author": "AESCION Systems",
+  "license": "Commercial"
+}
