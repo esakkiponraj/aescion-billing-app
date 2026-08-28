@@ -8,10 +8,16 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthTokenPayload } from '@aescion/shared-types';
 import { Permission } from '@aescion/capability-config';
 
-@Controller('team')
+@Controller(['team', 'users'])
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 export class TeamController {
   constructor(private teamService: TeamService) {}
+
+  @Get()
+  @RequirePermissions(Permission.USER_VIEW)
+  async getUsers(@CurrentUser() user: AuthTokenPayload) {
+    return this.teamService.getMembers(user.organizationId);
+  }
 
   @Get('members')
   @RequirePermissions(Permission.USER_VIEW)
@@ -23,6 +29,12 @@ export class TeamController {
   @RequirePermissions(Permission.ROLE_VIEW)
   async getRoles(@CurrentUser() user: AuthTokenPayload) {
     return this.teamService.getRoles(user.organizationId);
+  }
+
+  @Post()
+  @RequirePermissions(Permission.USER_CREATE)
+  async createUser(@CurrentUser() user: AuthTokenPayload, @Body() body: any) {
+    return this.teamService.addMember(user.organizationId, user.userId, user.email, body);
   }
 
   @Post('members')

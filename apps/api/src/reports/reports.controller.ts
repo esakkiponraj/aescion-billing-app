@@ -20,9 +20,10 @@ export class ReportsController {
     @Req() req: any,
     @Query('period') period?: 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'CUSTOM',
     @Query('fromDate') fromDate?: string,
-    @Query('toDate') toDate?: string
+    @Query('toDate') toDate?: string,
+    @Query('branchId') queryBranchId?: string
   ) {
-    const branchId = (req.headers['x-branch-id'] as string) || user.branchId;
+    const branchId = queryBranchId || (req.headers['x-branch-id'] as string) || user.branchId;
     return this.reportsService.getDashboardPulse(user.organizationId, branchId, period, fromDate, toDate);
   }
 
@@ -30,9 +31,44 @@ export class ReportsController {
   @RequirePermissions(Permission.REPORT_SALES)
   async getReportsSummary(
     @CurrentUser() user: AuthTokenPayload,
-    @Req() req: any
+    @Req() req: any,
+    @Query('branchId') queryBranchId?: string
   ) {
-    const branchId = (req.headers['x-branch-id'] as string) || user.branchId;
+    const branchId = queryBranchId || (req.headers['x-branch-id'] as string) || user.branchId;
     return this.reportsService.getReportsSummary(user.organizationId, branchId);
+  }
+
+  @Get('analytics')
+  @RequirePermissions(Permission.REPORT_SALES)
+  async getReportsAnalytics(
+    @CurrentUser() user: AuthTokenPayload,
+    @Req() req: any,
+    @Query('branchId') queryBranchId?: string
+  ) {
+    const branchId = queryBranchId || (req.headers['x-branch-id'] as string) || user.branchId;
+    return this.reportsService.getReportsSummary(user.organizationId, branchId);
+  }
+
+  @Get('audit-logs')
+  @RequirePermissions(Permission.REPORT_SALES)
+  async getAuditLogs(
+    @CurrentUser() user: AuthTokenPayload,
+    @Req() req: any,
+    @Query('branchId') queryBranchId?: string,
+    @Query('userId') userId?: string,
+    @Query('action') action?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('limit') limit?: string
+  ) {
+    const branchId = queryBranchId || (req.headers['x-branch-id'] as string) || user.branchId;
+    return this.reportsService.getAuditLogs(user.organizationId, {
+      branchId,
+      userId,
+      action,
+      fromDate,
+      toDate,
+      limit: limit ? parseInt(limit, 10) : 50
+    });
   }
 }

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Organization, Branch, Role, LoginResponse } from '@aescion/shared-types';
 import { saveSecureItem, getSecureItem, deleteSecureItem } from './secureStorage';
 import { MobileApiClient } from '../api/mobileApiClient';
-import { joinMobileBranchRoom } from '../realtime/socket';
+import { joinMobileBranchRoom, identifyMobilePresence, disconnectMobilePresence } from '../realtime/socket';
 import { syncInitialCatalog, refreshQueueCounts } from '../sync/syncEngine';
 
 interface MobileAuthContextType {
@@ -14,8 +14,10 @@ interface MobileAuthContextType {
   permissions: string[];
   capabilities: string[];
   isAuthenticated: boolean;
+  isSuperAdmin: boolean;
   isLoading: boolean;
-  login: (identifier: string, pass: string) => Promise<void>;
+  login: (identifier: string, pass: string) => Promise<LoginResponse>;
+  registerOwner: (payload: any) => Promise<void>;
   switchBranch: (branchId: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -36,7 +38,9 @@ export const MobileAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const applyAuthPayload = async (data: LoginResponse) => {
     await saveSecureItem('aescion_mobile_token', data.accessToken);
     await saveSecureItem('aescion_mobile_refresh_token', data.refreshToken);
-    await saveSecureItem('aescion_mobile_branch_id', data.activeBranch.id);
+    if (data.activeBranch?.id) {
+      await saveSecureItem('aescion_mobile_branch_id', data.activeBranch.id);
+    }
     await saveSecureItem('aescion_cached_user', JSON.stringify(data.user));
     await saveSecureItem('aescion_cached_org', JSON.stringify(data.organization));
     await saveSecureItem('aescion_cached_branch', JSON.stringify(data.activeBranch));
@@ -46,18 +50,24 @@ export const MobileAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     setUser(data.user);
     setOrganization(data.organization);
-    setBranches(data.branches || [data.activeBranch]);
+    setBranches(data.branches || (data.activeBranch ? [data.activeBranch] : []));
     setActiveBranch(data.activeBranch);
     setActiveRole(data.activeRole);
     setPermissions(data.permissions || []);
     setCapabilities(data.capabilities || []);
 
-    joinMobileBranchRoom(data.organization.id, data.activeBranch.id);
-    syncInitialCatalog(data.organization.id, data.activeBranch.id);
-    refreshQueueCounts();
+    if (data.organization?.id) {
+      identifyMobilePresence(data.user.id, data.organization.id, data.activeBranch?.id, data.activeRole?.roleType);
+    }
+
+    if (data.organization?.id && data.activeBranch?.id) {
+      joinMobileBranchRoom(data.organization.id, data.activeBranch.id);
+      syncInitialCatalog(data.organization.id, data.activeBranch.id);
+      refreshQueueCounts();
+    }
   };
 
-  const login = async (identifier: string, pass: string) => {
+  const login = async (identifier: string, pass: string): Promise<LoginResponse> => {
     setIsLoading(true);
     try {
       const data = await MobileApiClient.post<LoginResponse>('/auth/login', {
@@ -65,12 +75,24 @@ export const MobileAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         password: pass
       });
       await applyAuthPayload(data);
+      return data;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const registerOwner = async (payload: any) => {
+    setIsLoading(true);
+    try {
+      const data = await MobileApiClient.post<LoginResponse>('/onboarding/create-business', payload);
+      await applyAuthPayload(data);
     } finally {
       setIsLoading(false);
     }
   };
 
   const logout = async () => {
+    disconnectMobilePresence();
     await deleteSecureItem('aescion_mobile_token');
     await deleteSecureItem('aescion_mobile_refresh_token');
     await deleteSecureItem('aescion_mobile_branch_id');
@@ -146,8 +168,10 @@ export const MobileAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         permissions,
         capabilities,
         isAuthenticated: !!user && !!organization,
+        isSuperAdmin: activeRole?.roleType === 'SUPER_ADMIN' || (activeRole?.roleType as any) === 'SUPER_ADMIN',
         isLoading,
         login,
+        registerOwner,
         switchBranch,
         logout,
         refreshSession

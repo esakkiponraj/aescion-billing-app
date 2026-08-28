@@ -2,12 +2,14 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../common/prisma.service';
 import { ShiftStatus } from '@aescion/shared-types';
 import { AuditService } from '../common/services/audit.service';
+import { EventsGateway } from '../realtime/events.gateway';
 
 @Injectable()
 export class ShiftService {
   constructor(
     private prisma: PrismaService,
-    private auditService: AuditService
+    private auditService: AuditService,
+    private eventsGateway: EventsGateway
   ) {}
 
   async getCurrentShift(organizationId: string, branchId: string, cashierId: string) {
@@ -50,7 +52,7 @@ export class ShiftService {
 
   async getAllShifts(organizationId: string, branchId?: string) {
     const where: any = { organizationId };
-    if (branchId) where.branchId = branchId;
+    if (branchId && branchId !== 'ALL') where.branchId = branchId;
     const shifts = await this.prisma.cashierShift.findMany({
       where,
       include: { register: true },
@@ -69,12 +71,18 @@ export class ShiftService {
     }));
   }
 
-  async openShift(organizationId: string, branchId: string, cashierId: string, cashierName: string, data: {
-    registerId?: string;
-    openingCash?: number;
-    openingFloat?: number;
-    notes?: string;
-  }) {
+  async openShift(
+    organizationId: string,
+    branchId: string,
+    cashierId: string,
+    cashierName: string,
+    data: {
+      registerId?: string;
+      openingCash?: number;
+      openingFloat?: number;
+      notes?: string;
+    }
+  ) {
     const active = await this.prisma.cashierShift.findFirst({
       where: { organizationId, branchId, cashierId, shiftStatus: ShiftStatus.OPEN }
     });
@@ -82,13 +90,15 @@ export class ShiftService {
       throw new BadRequestException('You already have an active open shift on this register.');
     }
 
-    const openingCash = data.openingCash !== undefined ? data.openingCash : (data.openingFloat !== undefined ? data.openingFloat : 0);
+    const openingCash = data.openingCash !== undefined ? data.openingCash : data.openingFloat !== undefined ? data.openingFloat : 0;
 
     // Validate or resolve Register
     let targetRegisterId = data.registerId;
-    const regExists = targetRegisterId ? await this.prisma.register.findFirst({
-      where: { id: targetRegisterId, organizationId }
-    }) : null;
+    const regExists = targetRegisterId
+      ? await this.prisma.register.findFirst({
+          where: { id: targetRegisterId, organizationId }
+        })
+      : null;
 
     if (!regExists) {
       let branchReg = await this.prisma.register.findFirst({
@@ -133,7 +143,7 @@ export class ShiftService {
       details: { openingCash }
     });
 
-    return {
+    const result = {
       ...shift,
       shiftNumber: `SH-${shift.id.slice(0, 8).toUpperCase()}`,
       status: shift.shiftStatus,
@@ -144,13 +154,22 @@ export class ShiftService {
       expectedCash: shift.openingCash,
       actualCashCounted: null
     };
+
+    this.eventsGateway.emitShiftUpdate(organizationId, branchId, result);
+    return result;
   }
 
-  async closeShift(organizationId: string, shiftId: string, cashierId: string, cashierName: string, data: {
-    actualCash?: number;
-    actualCashCounted?: number;
-    notes?: string;
-  }) {
+  async closeShift(
+    organizationId: string,
+    shiftId: string,
+    cashierId: string,
+    cashierName: string,
+    data: {
+      actualCash?: number;
+      actualCashCounted?: number;
+      notes?: string;
+    }
+  ) {
     const shift = await this.prisma.cashierShift.findFirst({
       where: { id: shiftId, organizationId }
     });
@@ -171,7 +190,7 @@ export class ShiftService {
 
     const totalCashCollected = cashPayments._sum.amount || 0;
     const expectedClosingCash = shift.openingCash + totalCashCollected;
-    const actualCash = data.actualCash !== undefined ? data.actualCash : (data.actualCashCounted !== undefined ? data.actualCashCounted : 0);
+    const actualCash = data.actualCash !== undefined ? data.actualCash : data.actualCashCounted !== undefined ? data.actualCashCounted : 0;
     const cashDifference = Math.round((actualCash - expectedClosingCash) * 100) / 100;
 
     const closedShift = await this.prisma.cashierShift.update({
@@ -197,7 +216,7 @@ export class ShiftService {
       details: { expectedClosingCash, actualCash, cashDifference }
     });
 
-    return {
+    const result = {
       ...closedShift,
       shiftNumber: `SH-${closedShift.id.slice(0, 8).toUpperCase()}`,
       status: closedShift.shiftStatus,
@@ -207,13 +226,22 @@ export class ShiftService {
       startTime: closedShift.openedAt,
       endTime: closedShift.closedAt
     };
+
+    this.eventsGateway.emitShiftUpdate(organizationId, shift.branchId, result);
+    return result;
   }
 
-  async closeCurrentShift(organizationId: string, branchId: string, cashierId: string, cashierName: string, data: {
-    actualCash?: number;
-    actualCashCounted?: number;
-    notes?: string;
-  }) {
+  async closeCurrentShift(
+    organizationId: string,
+    branchId: string,
+    cashierId: string,
+    cashierName: string,
+    data: {
+      actualCash?: number;
+      actualCashCounted?: number;
+      notes?: string;
+    }
+  ) {
     const active = await this.prisma.cashierShift.findFirst({
       where: { organizationId, branchId, cashierId, shiftStatus: ShiftStatus.OPEN }
     });

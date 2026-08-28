@@ -2,14 +2,17 @@ import { Controller, Get, Post, Body, Query, UseGuards, Req } from '@nestjs/comm
 import { PharmacyService } from './pharmacy.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
+import { IndustryGuard } from '../common/guards/industry.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
+import { RequireIndustry } from '../common/decorators/require-industry.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { AuthTokenPayload } from '@aescion/shared-types';
+import { AuthTokenPayload, BusinessType } from '@aescion/shared-types';
 import { Permission } from '@aescion/capability-config';
 
 @Controller('pharmacy')
-@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, IndustryGuard, PermissionsGuard)
+@RequireIndustry(BusinessType.PHARMACY)
 export class PharmacyController {
   constructor(private pharmacyService: PharmacyService) {}
 

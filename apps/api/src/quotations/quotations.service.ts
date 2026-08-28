@@ -4,13 +4,15 @@ import { QuotationStatus } from '@aescion/shared-types';
 import { formatDocumentNumber } from '@aescion/shared-utils';
 import { InvoiceService } from '../invoices/invoices.service';
 import { AuditService } from '../common/services/audit.service';
+import { EventsGateway } from '../realtime/events.gateway';
 
 @Injectable()
 export class QuotationService {
   constructor(
     private prisma: PrismaService,
     private invoiceService: InvoiceService,
-    private auditService: AuditService
+    private auditService: AuditService,
+    private eventsGateway: EventsGateway
   ) {}
 
   async findAll(organizationId: string, branchId?: string, status?: string) {
@@ -97,6 +99,8 @@ export class QuotationService {
       entityId: quotation.id,
       details: { quotationNumber, grandTotal }
     });
+
+    this.eventsGateway.emitQuotationUpdated(organizationId, branchId, quotation);
 
     return quotation;
   }

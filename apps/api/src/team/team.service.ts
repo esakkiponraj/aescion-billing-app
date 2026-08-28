@@ -3,12 +3,14 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../common/prisma.service';
 import { RoleType } from '@aescion/shared-types';
 import { AuditService } from '../common/services/audit.service';
+import { EventsGateway } from '../realtime/events.gateway';
 
 @Injectable()
 export class TeamService {
   constructor(
     private prisma: PrismaService,
-    private auditService: AuditService
+    private auditService: AuditService,
+    private eventsGateway: EventsGateway
   ) {}
 
   async getMembers(organizationId: string) {
@@ -34,17 +36,19 @@ export class TeamService {
 
   async addMember(organizationId: string, userId: string, userName: string, data: {
     firstName: string;
-    lastName: string;
-    email: string;
+    lastName?: string;
+    email?: string;
     username: string;
     password: string;
-    roleId: string;
+    roleId?: string;
+    roleName?: string;
     branchId?: string;
   }) {
+    const userEmail = data.email ? data.email.toLowerCase() : `${data.username.toLowerCase()}@aescion.local`;
     const existing = await this.prisma.user.findFirst({
       where: {
         OR: [
-          { email: { equals: data.email, mode: 'insensitive' } },
+          { email: { equals: userEmail, mode: 'insensitive' } },
           { username: { equals: data.username, mode: 'insensitive' } }
         ]
       }
@@ -54,14 +58,32 @@ export class TeamService {
       throw new ConflictException('A user with this email or username already exists.');
     }
 
+    let targetRoleId = data.roleId;
+    if (!targetRoleId && data.roleName) {
+      const foundRole = await this.prisma.role.findFirst({
+        where: {
+          name: { equals: data.roleName, mode: 'insensitive' },
+          OR: [{ organizationId }, { organizationId: null, isSystem: true }]
+        }
+      });
+      if (foundRole) targetRoleId = foundRole.id;
+    }
+
+    if (!targetRoleId) {
+      const defaultRole = await this.prisma.role.findFirst({
+        where: { name: 'CASHIER', isSystem: true }
+      });
+      targetRoleId = defaultRole?.id || '';
+    }
+
     const passwordHash = await bcrypt.hash(data.password, 10);
 
-    return this.prisma.$transaction(async (tx) => {
+    const createdMembership = await this.prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
           firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email.toLowerCase(),
+          lastName: data.lastName || '',
+          email: userEmail,
           username: data.username.toLowerCase(),
           passwordHash,
           isActive: true
@@ -73,7 +95,7 @@ export class TeamService {
           userId: newUser.id,
           organizationId,
           branchId: data.branchId || null,
-          roleId: data.roleId,
+          roleId: targetRoleId,
           isActive: true
         },
         include: { user: true, role: true, branch: true }
@@ -87,11 +109,14 @@ export class TeamService {
         action: 'TEAM_MEMBER_ADDED',
         entityType: 'USER',
         entityId: newUser.id,
-        details: { email: data.email, roleId: data.roleId }
+        details: { email: userEmail, roleId: targetRoleId }
       });
 
       return membership;
     });
+
+    this.eventsGateway.emitTeamUpdated(organizationId, createdMembership);
+    return createdMembership;
   }
 
   async updateMember(organizationId: string, memberId: string, userId: string, userName: string, data: {
@@ -110,7 +135,7 @@ export class TeamService {
 
     if (!membership) throw new NotFoundException('Team member not found');
 
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       if (data.firstName || data.lastName || data.email || data.password || data.isActive !== undefined) {
         const userData: any = {};
         if (data.firstName) userData.firstName = data.firstName;
@@ -147,6 +172,9 @@ export class TeamService {
 
       return updatedMembership;
     });
+
+    this.eventsGateway.emitTeamUpdated(organizationId, updated);
+    return updated;
   }
 
   async createCustomRole(organizationId: string, userId: string, userName: string, data: { name: string; permissions: string[] }) {

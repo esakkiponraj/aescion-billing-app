@@ -2,14 +2,17 @@ import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Req } from '
 import { ServiceJobService } from './service.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
+import { IndustryGuard } from '../common/guards/industry.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
+import { RequireIndustry } from '../common/decorators/require-industry.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { AuthTokenPayload, ServiceJobStatus } from '@aescion/shared-types';
+import { AuthTokenPayload, BusinessType, ServiceJobStatus } from '@aescion/shared-types';
 import { Permission } from '@aescion/capability-config';
 
 @Controller('service-jobs')
-@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, IndustryGuard, PermissionsGuard)
+@RequireIndustry(BusinessType.SERVICE)
 export class ServiceJobController {
   constructor(private serviceJobService: ServiceJobService) {}
 

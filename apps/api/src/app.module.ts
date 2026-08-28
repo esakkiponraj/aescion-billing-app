@@ -21,10 +21,12 @@ import { OrganizationModule } from './organizations/organizations.module';
 import { SupplierModule } from './suppliers/suppliers.module';
 import { SyncModule } from './sync/sync.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { SuperAdminModule } from './super-admin/super-admin.module';
 
 @Module({
   imports: [
     RealtimeModule,
+    SuperAdminModule,
     AuthModule,
     OnboardingModule,
     ProductModule,

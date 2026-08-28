@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { AuditService } from '../common/services/audit.service';
+import { EventsGateway } from '../realtime/events.gateway';
 
 @Injectable()
 export class BranchService {
   constructor(
     private prisma: PrismaService,
-    private auditService: AuditService
+    private auditService: AuditService,
+    private eventsGateway: EventsGateway
   ) {}
 
   async findAll(organizationId: string) {
@@ -42,7 +44,7 @@ export class BranchService {
       throw new ConflictException(`A branch with code ${code} already exists.`);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const createdBranch = await this.prisma.$transaction(async (tx) => {
       const branch = await tx.branch.create({
         data: {
           organizationId,
@@ -80,6 +82,9 @@ export class BranchService {
 
       return branch;
     });
+
+    this.eventsGateway.emitBranchUpdated(organizationId, createdBranch);
+    return createdBranch;
   }
 
   async update(organizationId: string, id: string, userId: string, userName: string, data: {
@@ -116,6 +121,7 @@ export class BranchService {
       details: data
     });
 
+    this.eventsGateway.emitBranchUpdated(organizationId, updated);
     return updated;
   }
 

@@ -3,18 +3,39 @@ import { PrismaService } from '../common/prisma.service';
 import { StockEventType } from '@aescion/shared-types';
 import { formatDocumentNumber } from '@aescion/shared-utils';
 import { AuditService } from '../common/services/audit.service';
+import { EventsGateway } from '../realtime/events.gateway';
 
 @Injectable()
 export class SupplierService {
   constructor(
     private prisma: PrismaService,
-    private auditService: AuditService
+    private auditService: AuditService,
+    private eventsGateway: EventsGateway
   ) {}
 
   async getSuppliers(organizationId: string) {
-    return this.prisma.supplier.findMany({
+    const suppliers = await this.prisma.supplier.findMany({
       where: { organizationId },
+      include: {
+        purchaseOrders: {
+          take: 10,
+          orderBy: { createdAt: 'desc' }
+        }
+      },
       orderBy: { name: 'asc' }
+    });
+
+    return suppliers.map(s => {
+      let pendingPayables = 0;
+      for (const po of s.purchaseOrders) {
+        if (po.status !== 'CANCELLED') {
+          pendingPayables += po.grandTotal;
+        }
+      }
+      return {
+        ...s,
+        pendingPayables: Math.round(pendingPayables * 100) / 100
+      };
     });
   }
 
@@ -41,12 +62,13 @@ export class SupplierService {
       details: { name: supplier.name }
     });
 
+    this.eventsGateway.emitSupplierUpdated(organizationId, supplier);
     return supplier;
   }
 
   async getPurchaseOrders(organizationId: string, branchId?: string) {
     const where: any = { organizationId };
-    if (branchId) where.branchId = branchId;
+    if (branchId && branchId !== 'ALL') where.branchId = branchId;
     return this.prisma.purchaseOrder.findMany({
       where,
       include: { supplier: true, items: true },
@@ -97,7 +119,7 @@ export class SupplierService {
         createdById: userId,
         items: { create: items }
       },
-      include: { items: true }
+      include: { items: true, supplier: true }
     });
 
     await this.auditService.log({
@@ -111,6 +133,7 @@ export class SupplierService {
       details: { poNumber, grandTotal }
     });
 
+    this.eventsGateway.emitPulseUpdate(organizationId, branchId, { trigger: 'PURCHASE_ORDER_CREATED', poId: po.id });
     return po;
   }
 
@@ -121,7 +144,7 @@ export class SupplierService {
     });
     if (!po) throw new NotFoundException('Purchase Order not found');
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       for (const rec of receivedItems) {
         const item = po.items.find((i) => i.productId === rec.productId);
         if (item) {
@@ -177,5 +200,9 @@ export class SupplierService {
 
       return updatedPo;
     });
+
+    this.eventsGateway.emitInventoryUpdate(organizationId, branchId, { poId: po.id, trigger: 'GRN_RECEIVED' });
+    this.eventsGateway.emitPulseUpdate(organizationId, branchId, { trigger: 'GRN_RECEIVED' });
+    return result;
   }
 }

@@ -2,14 +2,17 @@ import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Req } from '
 import { RestaurantService } from './restaurant.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
+import { IndustryGuard } from '../common/guards/industry.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator';
+import { RequireIndustry } from '../common/decorators/require-industry.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { AuthTokenPayload, KitchenStatus } from '@aescion/shared-types';
+import { AuthTokenPayload, BusinessType, KitchenStatus } from '@aescion/shared-types';
 import { Permission } from '@aescion/capability-config';
 
 @Controller('restaurant')
-@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, IndustryGuard, PermissionsGuard)
+@RequireIndustry(BusinessType.RESTAURANT)
 export class RestaurantController {
   constructor(private restaurantService: RestaurantService) {}
 

@@ -2,12 +2,14 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../common/prisma.service';
 import { CreditAgeingSummary } from '@aescion/shared-types';
 import { AuditService } from '../common/services/audit.service';
+import { EventsGateway } from '../realtime/events.gateway';
 
 @Injectable()
 export class CustomerService {
   constructor(
     private prisma: PrismaService,
-    private auditService: AuditService
+    private auditService: AuditService,
+    private eventsGateway: EventsGateway
   ) {}
 
   async findAll(organizationId: string, search?: string) {
@@ -64,6 +66,7 @@ export class CustomerService {
       details: { name: customer.name, phone: customer.phone }
     });
 
+    this.eventsGateway.emitCustomerUpdated(organizationId, customer);
     return customer;
   }
 
@@ -92,6 +95,7 @@ export class CustomerService {
       entityId: customer.id
     });
 
+    this.eventsGateway.emitCustomerUpdated(organizationId, updated);
     return updated;
   }
 

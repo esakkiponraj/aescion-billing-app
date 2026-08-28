@@ -2,12 +2,14 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { PrismaService } from '../common/prisma.service';
 import { CreateProductInput } from '@aescion/validation';
 import { AuditService } from '../common/services/audit.service';
+import { EventsGateway } from '../realtime/events.gateway';
 
 @Injectable()
 export class ProductService {
   constructor(
     private prisma: PrismaService,
-    private auditService: AuditService
+    private auditService: AuditService,
+    private eventsGateway: EventsGateway
   ) {}
 
   async findAll(organizationId: string, search?: string, category?: string) {
@@ -64,7 +66,7 @@ export class ProductService {
       throw new ConflictException(`A product with SKU ${dto.sku} already exists.`);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const createdProduct = await this.prisma.$transaction(async (tx) => {
       const product = await tx.product.create({
         data: {
           organizationId,
@@ -115,6 +117,9 @@ export class ProductService {
 
       return product;
     });
+
+    this.eventsGateway.emitProductUpdated(organizationId, branchId, createdProduct);
+    return createdProduct;
   }
 
   async update(organizationId: string, id: string, userId: string, userName: string, data: any) {
@@ -133,6 +138,7 @@ export class ProductService {
       entityId: product.id
     });
 
+    this.eventsGateway.emitProductUpdated(organizationId, undefined, updated);
     return updated;
   }
 

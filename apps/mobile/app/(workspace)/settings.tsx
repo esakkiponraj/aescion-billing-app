@@ -11,11 +11,14 @@ import { useRouter } from 'expo-router';
 import { useMobileAuth } from '../../src/auth/authContext';
 import { defaultPrinter } from '../../src/hardware/printerAdapter';
 import { syncInitialCatalog } from '../../src/sync/syncEngine';
+import { BusinessType } from '@aescion/shared-types';
 
 export default function MobileSettingsScreen() {
   const { user, organization, branches, activeBranch, switchBranch, logout } = useMobileAuth();
   const router = useRouter();
   const [isSyncing, setIsSyncing] = useState(false);
+
+  const businessType = (organization?.businessType as BusinessType) || BusinessType.SUPERMARKET;
 
   const handleTestPrint = () => {
     defaultPrinter.printReceipt({
@@ -32,7 +35,7 @@ export default function MobileSettingsScreen() {
       paymentMethod: 'TEST_MODE',
       cashierName: `${user?.firstName} ${user?.lastName}`
     });
-    Alert.alert('🖨️ Test Print Dispatched', 'Thermal printer ESC/POS command transmitted.');
+    Alert.alert('Printer Test Dispatched', 'Thermal printer ESC/POS command transmitted.');
   };
 
   const handleForceRefreshCatalog = async () => {
@@ -40,7 +43,7 @@ export default function MobileSettingsScreen() {
     setIsSyncing(true);
     try {
       await syncInitialCatalog(organization.id, activeBranch.id);
-      Alert.alert('✅ Catalog Synchronized', 'Latest cloud products saved to local SQLite database.');
+      Alert.alert('Catalog Synchronized', 'Latest cloud products saved to local SQLite database.');
     } catch (err: any) {
       Alert.alert('Sync Error', err.message || 'Failed to refresh catalog.');
     } finally {
@@ -56,7 +59,7 @@ export default function MobileSettingsScreen() {
         style: 'destructive',
         onPress: async () => {
           await logout();
-          router.replace('/login');
+          router.replace('/');
         }
       }
     ]);
@@ -64,7 +67,91 @@ export default function MobileSettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Active Outlet Selection */}
+      {/* 1. All Business Modules Directory */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Owner Business Modules</Text>
+        <Text style={styles.cardDesc}>Direct access to all commercial workflows and ledgers.</Text>
+
+        <View style={styles.moduleGrid}>
+          <TouchableOpacity style={styles.moduleTile} onPress={() => router.push('/(workspace)/customers')}>
+            <Text style={styles.moduleEmoji}>👥</Text>
+            <Text style={styles.moduleTitle}>Customers</Text>
+            <Text style={styles.moduleDesc}>Credit & Loyalty</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.moduleTile} onPress={() => router.push('/(workspace)/quotations')}>
+            <Text style={styles.moduleEmoji}>📄</Text>
+            <Text style={styles.moduleTitle}>Quotations</Text>
+            <Text style={styles.moduleDesc}>Estimates & Bills</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.moduleTile} onPress={() => router.push('/(workspace)/receipts')}>
+            <Text style={styles.moduleEmoji}>💳</Text>
+            <Text style={styles.moduleTitle}>Receipts</Text>
+            <Text style={styles.moduleDesc}>Payment vouchers</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.moduleTile} onPress={() => router.push('/(workspace)/suppliers')}>
+            <Text style={styles.moduleEmoji}>🏭</Text>
+            <Text style={styles.moduleTitle}>Suppliers</Text>
+            <Text style={styles.moduleDesc}>Vendors & GRN</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.moduleTile} onPress={() => router.push('/(workspace)/reports')}>
+            <Text style={styles.moduleEmoji}>📊</Text>
+            <Text style={styles.moduleTitle}>Reports</Text>
+            <Text style={styles.moduleDesc}>Sales analytics</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.moduleTile} onPress={() => router.push('/(workspace)/team')}>
+            <Text style={styles.moduleEmoji}>🛡️</Text>
+            <Text style={styles.moduleTitle}>Team & Staff</Text>
+            <Text style={styles.moduleDesc}>Cashiers & RBAC</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.moduleTile} onPress={() => router.push('/(workspace)/shifts')}>
+            <Text style={styles.moduleEmoji}>⏱️</Text>
+            <Text style={styles.moduleTitle}>Shifts</Text>
+            <Text style={styles.moduleDesc}>Cashier drawers</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.moduleTile} onPress={() => router.push('/(workspace)/sync')}>
+            <Text style={styles.moduleEmoji}>🔄</Text>
+            <Text style={styles.moduleTitle}>Sync Center</Text>
+            <Text style={styles.moduleDesc}>Offline queues</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 2. Industry Specialized Modules */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Industry Feature Packs</Text>
+        <Text style={styles.cardDesc}>Domain-tailored tools enabled for your industry pack ({businessType}).</Text>
+
+        <View style={styles.industryRow}>
+          <TouchableOpacity style={styles.industryChip} onPress={() => router.push('/(workspace)/restaurant')}>
+            <Text style={styles.chipEmoji}>🍽️</Text>
+            <Text style={styles.chipText}>Tables & KOT</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.industryChip} onPress={() => router.push('/(workspace)/service')}>
+            <Text style={styles.chipEmoji}>🔧</Text>
+            <Text style={styles.chipText}>Job Cards</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.industryChip} onPress={() => router.push('/(workspace)/pharmacy')}>
+            <Text style={styles.chipEmoji}>💊</Text>
+            <Text style={styles.chipText}>Batch Safety</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.industryChip} onPress={() => router.push('/(workspace)/wholesale')}>
+            <Text style={styles.chipEmoji}>🚚</Text>
+            <Text style={styles.chipText}>Wholesale B2B</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 3. Active Outlet Selection */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Active Outlet / Branch</Text>
         <Text style={styles.cardDesc}>Switch the active sales counter location for this device.</Text>
@@ -91,13 +178,12 @@ export default function MobileSettingsScreen() {
         </View>
       </View>
 
-      {/* POS Hardware & Printer */}
+      {/* 4. POS Hardware & Printer */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Hardware & Peripheral Setup</Text>
+        <Text style={styles.cardTitle}>Hardware & Peripherals</Text>
         <Text style={styles.cardDesc}>Thermal ESC/POS receipt printer and barcode scanner.</Text>
 
         <TouchableOpacity style={styles.actionRowBtn} onPress={handleTestPrint}>
-          <Text style={styles.actionBtnEmoji}>🖨️</Text>
           <View style={styles.actionBtnInfo}>
             <Text style={styles.actionBtnTitle}>Run Printer Diagnostic Test</Text>
             <Text style={styles.actionBtnDesc}>Prints a test receipt to verify 58mm/80mm output</Text>
@@ -105,17 +191,16 @@ export default function MobileSettingsScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionRowBtn} onPress={handleForceRefreshCatalog}>
-          <Text style={styles.actionBtnEmoji}>🔄</Text>
           <View style={styles.actionBtnInfo}>
             <Text style={styles.actionBtnTitle}>Force Catalog Sync to SQLite</Text>
             <Text style={styles.actionBtnDesc}>
-              {isSyncing ? 'Updating local database...' : 'Download latest prices and items for offline use'}
+              {isSyncing ? 'Updating local database...' : 'Download latest cloud items for offline use'}
             </Text>
           </View>
         </TouchableOpacity>
       </View>
 
-      {/* Terminal Info */}
+      {/* 5. Terminal Info */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Terminal Diagnostics</Text>
         <View style={styles.diagRow}>
@@ -123,11 +208,11 @@ export default function MobileSettingsScreen() {
           <Text style={styles.diagVal}>v2.0.0 Enterprise</Text>
         </View>
         <View style={styles.diagRow}>
-          <Text style={styles.diagLabel}>Local SQLite Storage</Text>
+          <Text style={styles.diagLabel}>Local SQLite Engine</Text>
           <Text style={styles.diagVal}>aescion_commerce_v2.db (WAL)</Text>
         </View>
         <View style={styles.diagRow}>
-          <Text style={styles.diagLabel}>Secure Keystore</Text>
+          <Text style={styles.diagLabel}>Secure Storage</Text>
           <Text style={styles.diagVal}>Expo SecureStore Active</Text>
         </View>
       </View>
@@ -151,14 +236,14 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 16,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0'
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
     color: '#0F172A'
   },
@@ -166,7 +251,58 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     marginTop: 2,
-    marginBottom: 14
+    marginBottom: 12
+  },
+  moduleGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  moduleTile: {
+    width: '48%',
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
+  },
+  moduleEmoji: {
+    fontSize: 20,
+    marginBottom: 4
+  },
+  moduleTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A'
+  },
+  moduleDesc: {
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 1
+  },
+  industryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  industryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    gap: 6
+  },
+  chipEmoji: {
+    fontSize: 14
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B'
   },
   branchList: {
     gap: 8
@@ -208,14 +344,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     backgroundColor: '#F8FAFC',
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginBottom: 10
-  },
-  actionBtnEmoji: {
-    fontSize: 24,
-    marginRight: 12
+    marginBottom: 8
   },
   actionBtnInfo: {
     flex: 1

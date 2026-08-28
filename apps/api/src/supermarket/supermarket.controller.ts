@@ -2,11 +2,14 @@ import { Controller, Get, Param, UseGuards, Req } from '@nestjs/common';
 import { SupermarketService } from './supermarket.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
+import { IndustryGuard } from '../common/guards/industry.guard';
+import { RequireIndustry } from '../common/decorators/require-industry.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { AuthTokenPayload } from '@aescion/shared-types';
+import { AuthTokenPayload, BusinessType } from '@aescion/shared-types';
 
 @Controller('supermarket')
-@UseGuards(JwtAuthGuard, TenantGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, IndustryGuard)
+@RequireIndustry(BusinessType.SUPERMARKET)
 export class SupermarketController {
   constructor(private supermarketService: SupermarketService) {}
 

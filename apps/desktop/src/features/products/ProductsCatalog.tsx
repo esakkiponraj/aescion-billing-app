@@ -3,6 +3,7 @@ import { Package, Plus, Search, AlertTriangle, CheckCircle2, Barcode, X } from '
 import { ApiClient } from '../../services/api';
 import { useAuth } from '../../store/authContext';
 import { formatCurrencyINR } from '@aescion/shared-utils';
+import { subscribeToRealtime } from '../../services/socket';
 
 export const ProductsCatalog: React.FC = () => {
   const { activeBranch } = useAuth();
@@ -39,6 +40,8 @@ export const ProductsCatalog: React.FC = () => {
 
   useEffect(() => {
     fetchProducts();
+    const unsub = subscribeToRealtime('product_updated', () => fetchProducts());
+    return unsub;
   }, [search, activeBranch?.id]);
 
   const handleCreateProduct = async (e: React.FormEvent) => {

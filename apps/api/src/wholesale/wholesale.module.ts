@@ -3,8 +3,10 @@ import { WholesaleService } from './wholesale.service';
 import { WholesaleController } from './wholesale.controller';
 import { PrismaService } from '../common/prisma.service';
 import { AuditService } from '../common/services/audit.service';
+import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
+  imports: [RealtimeModule],
   controllers: [WholesaleController],
   providers: [WholesaleService, PrismaService, AuditService],
   exports: [WholesaleService]

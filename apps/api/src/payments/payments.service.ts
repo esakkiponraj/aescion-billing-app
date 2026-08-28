@@ -3,17 +3,19 @@ import { PrismaService } from '../common/prisma.service';
 import { InvoiceStatus, PaymentMethod, PaymentStatus } from '@aescion/shared-types';
 import { formatDocumentNumber } from '@aescion/shared-utils';
 import { AuditService } from '../common/services/audit.service';
+import { EventsGateway } from '../realtime/events.gateway';
 
 @Injectable()
 export class PaymentService {
   constructor(
     private prisma: PrismaService,
-    private auditService: AuditService
+    private auditService: AuditService,
+    private eventsGateway: EventsGateway
   ) {}
 
   async findPayments(organizationId: string, branchId?: string) {
     const where: any = { organizationId };
-    if (branchId) where.branchId = branchId;
+    if (branchId && branchId !== 'ALL') where.branchId = branchId;
     return this.prisma.payment.findMany({
       where,
       include: { invoice: true, receipts: true },
@@ -23,7 +25,7 @@ export class PaymentService {
 
   async findReceipts(organizationId: string, branchId?: string) {
     const where: any = { organizationId };
-    if (branchId) where.branchId = branchId;
+    if (branchId && branchId !== 'ALL') where.branchId = branchId;
     return this.prisma.receipt.findMany({
       where,
       include: { invoice: true, payment: true },
@@ -53,7 +55,7 @@ export class PaymentService {
 
     const docSettings = await this.prisma.documentSettings.findUnique({ where: { organizationId } });
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // 1. Update invoice
       await tx.invoice.update({
         where: { id: invoice.id },
@@ -66,7 +68,7 @@ export class PaymentService {
 
       // 2. Create Payment
       const paymentCount = await tx.payment.count({ where: { organizationId } });
-      const receiptNumber = formatDocumentNumber(docSettings?.receiptPrefix || 'RCP', paymentCount + 1, invoice.branch.code);
+      const receiptNumber = formatDocumentNumber(docSettings?.receiptPrefix || 'RCP', paymentCount + 1, invoice.branch?.code || 'MAIN');
 
       const payment = await tx.payment.create({
         data: {
@@ -99,12 +101,13 @@ export class PaymentService {
         }
       });
 
-      // 4. Update Customer Ledger if linked
+      // 4. Update Customer Ledger & Outstanding if linked
+      let updatedCustomer: any = null;
       if (invoice.customerId) {
         const customer = await tx.customer.findUnique({ where: { id: invoice.customerId } });
         if (customer) {
           const newOutstanding = Math.max(0, customer.currentOutstanding - amountToPay);
-          await tx.customer.update({
+          updatedCustomer = await tx.customer.update({
             where: { id: customer.id },
             data: { currentOutstanding: newOutstanding }
           });
@@ -134,8 +137,26 @@ export class PaymentService {
         details: { receiptNumber, amount: amountToPay, invoiceNumber: invoice.invoiceNumber }
       });
 
-      return { payment, receipt, invoice: { ...invoice, balanceAmount: newBalance, paidAmount: newPaidAmount, status: newStatus } };
+      return {
+        payment,
+        receipt,
+        customer: updatedCustomer,
+        invoice: { ...invoice, balanceAmount: newBalance, paidAmount: newPaidAmount, status: newStatus }
+      };
     });
+
+    // Real-time Event Emissions
+    this.eventsGateway.emitPaymentCreated(organizationId, branchId, result.payment);
+    if (result.customer) {
+      this.eventsGateway.emitCustomerUpdated(organizationId, result.customer);
+    }
+    this.eventsGateway.emitPulseUpdate(organizationId, branchId, {
+      trigger: 'PAYMENT_COLLECTED',
+      receiptId: result.receipt.id,
+      amount: amountToPay
+    });
+
+    return result;
   }
 
   async getReceiptForReprint(organizationId: string, receiptId: string) {

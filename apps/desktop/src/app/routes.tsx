@@ -1,5 +1,8 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '../store/authContext';
+
+// Tenant Workspace Shell & Features
 import { WorkspaceShell } from '../components/layout/WorkspaceShell';
 import { DashboardPulse } from '../features/dashboard/DashboardPulse';
 import { FastBillingPOS } from '../features/pos/FastBillingPOS';
@@ -22,10 +25,43 @@ import { BranchesView } from '../features/branches/BranchesView';
 import { ReportsView } from '../features/reports/ReportsView';
 import { SettingsView } from '../features/settings/SettingsView';
 
+// Platform Super Admin Shell & Features
+import { SuperAdminShell } from '../features/superadmin/SuperAdminShell';
+import { PlatformDashboard } from '../features/superadmin/PlatformDashboard';
+import { CompaniesDirectory } from '../features/superadmin/CompaniesDirectory';
+import { CompanyDetailWorkspace } from '../features/superadmin/CompanyDetailWorkspace';
+import { PlatformActivityFeed } from '../features/superadmin/PlatformActivityFeed';
+import { PlatformReports } from '../features/superadmin/PlatformReports';
+import { SystemAuditLogs } from '../features/superadmin/SystemAuditLogs';
+
 export const AppRoutes: React.FC = () => {
+  const { isSuperAdmin } = useAuth();
+
+  // 1. Super Admin Role routes
+  if (isSuperAdmin) {
+    return (
+      <SuperAdminShell>
+        <Routes>
+          <Route path="/" element={<Navigate to="/super-admin" replace />} />
+          <Route path="/super-admin" element={<PlatformDashboard />} />
+          <Route path="/super-admin/companies" element={<CompaniesDirectory />} />
+          <Route path="/super-admin/companies/:id" element={<CompanyDetailWorkspace />} />
+          <Route path="/super-admin/activity" element={<PlatformActivityFeed />} />
+          <Route path="/super-admin/reports" element={<PlatformReports />} />
+          <Route path="/super-admin/audit" element={<SystemAuditLogs />} />
+          <Route path="*" element={<Navigate to="/super-admin" replace />} />
+        </Routes>
+      </SuperAdminShell>
+    );
+  }
+
+  // 2. Tenant Owner / Staff routes
   return (
     <WorkspaceShell>
       <Routes>
+        {/* Prevent access to Super Admin */}
+        <Route path="/super-admin/*" element={<Navigate to="/dashboard" replace />} />
+
         {/* Core & Operations */}
         <Route path="/" element={<DashboardPulse />} />
         <Route path="/dashboard" element={<DashboardPulse />} />
@@ -33,7 +69,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/products" element={<ProductsCatalog />} />
         <Route path="/inventory" element={<StockLedgerView />} />
 
-        {/* Billing & Documents (supports both prefixed and direct paths) */}
+        {/* Billing & Documents */}
         <Route path="/quotations" element={<QuotationsList />} />
         <Route path="/billing/quotations" element={<QuotationsList />} />
         <Route path="/invoices" element={<InvoicesList />} />
@@ -42,7 +78,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/billing/receipts" element={<ReceiptsView />} />
         <Route path="/payments" element={<ReceiptsView />} />
 
-        {/* Management (supports both prefixed and direct paths) */}
+        {/* Management */}
         <Route path="/customers" element={<CustomersView />} />
         <Route path="/management/customers" element={<CustomersView />} />
         <Route path="/suppliers" element={<SuppliersView />} />

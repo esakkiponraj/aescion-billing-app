@@ -11,7 +11,21 @@ import {
   ScrollView,
   Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import {
+  Zap,
+  ArrowLeft,
+  Lock,
+  User,
+  Server,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  UserPlus,
+  ArrowRight,
+  HelpCircle
+} from 'lucide-react-native';
 import { useMobileAuth } from '../src/auth/authContext';
 import { setMobileApiUrl, getMobileApiUrl } from '../src/api/mobileApiClient';
 
@@ -37,8 +51,12 @@ export default function LoginScreen() {
 
     try {
       setMobileApiUrl(apiUrl.trim());
-      await login(identifier.trim(), password);
-      router.replace('/(workspace)/dashboard');
+      const res = await login(identifier.trim(), password);
+      if (res.activeRole?.roleType === 'SUPER_ADMIN' || (res.activeRole?.roleType as any) === 'SUPER_ADMIN') {
+        router.replace('/(workspace)/super-admin');
+      } else {
+        router.replace('/(workspace)/dashboard');
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'Login failed. Check server connection and credentials.');
     } finally {
@@ -46,171 +64,273 @@ export default function LoginScreen() {
     }
   };
 
+  const handleBackToLanding = () => {
+    router.replace('/');
+  };
+
+  const handleForgotPassword = () => {
+    Alert.alert(
+      'Reset Password',
+      'For security, password resets are managed by your Organization Owner or System Administrator. If you are the Owner, contact AESCION support at support@aescion.com.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleCreateAccount = () => {
+    router.push('/register');
+  };
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* AESCION Public Platform Identity */}
-        <View style={styles.header}>
-          <View style={styles.brandIcon}>
-            <Text style={styles.brandIconText}>⚡</Text>
-          </View>
-          <Text style={styles.brandTitle}>AESCION</Text>
-          <Text style={styles.brandSubtitle}>Commerce Mobile OS & Fast POS</Text>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.container}
+      >
+        {/* Navigation Bar */}
+        <View style={styles.topNav}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleBackToLanding} activeOpacity={0.7}>
+            <ArrowLeft size={18} color="#2563EB" />
+            <Text style={styles.backBtnText}>Welcome Page</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Login Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Sign In to Workspace</Text>
-          <Text style={styles.cardDesc}>Enter your enterprise credentials to access POS & billing</Text>
-
-          {errorMessage && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{errorMessage}</Text>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {/* AESCION Brand Header */}
+          <View style={styles.header}>
+            <View style={styles.brandIcon}>
+              <Zap size={28} color="#FFFFFF" fill="#FFFFFF" />
             </View>
-          )}
-
-          {/* Identifier Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email / Username</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. owner@store.com or cashier_01"
-              placeholderTextColor="#94A3B8"
-              value={identifier}
-              onChangeText={setIdentifier}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            <View style={styles.brandTitleRow}>
+              <Text style={styles.brandTitleBold}>AESCION</Text>
+              <Text style={styles.brandTitleAccent}>Commerce</Text>
+            </View>
+            <Text style={styles.brandSubtitle}>Mobile Operating System & Fast POS</Text>
           </View>
 
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••••••"
-              placeholderTextColor="#94A3B8"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-            />
-          </View>
+          {/* Login Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Welcome Back</Text>
+            <Text style={styles.cardDesc}>Enter your enterprise credentials to access POS & billing</Text>
 
-          {/* API Server URL Config Toggle */}
-          <TouchableOpacity
-            style={styles.configToggle}
-            onPress={() => setShowConfig(!showConfig)}
-          >
-            <Text style={styles.configToggleText}>
-              {showConfig ? '▲ Hide Server Config' : '⚙️ API Server Connection'}
-            </Text>
-          </TouchableOpacity>
+            {errorMessage && (
+              <View style={styles.errorBox}>
+                <AlertCircle size={16} color="#DC2626" style={styles.errorIcon} />
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            )}
 
-          {showConfig && (
-            <View style={styles.configBox}>
-              <Text style={styles.label}>API Base URL</Text>
+            {/* Identifier Input */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <User size={13} color="#475569" style={styles.labelIcon} />
+                <Text style={styles.label}>Email / Username</Text>
+              </View>
               <TextInput
-                style={styles.configInput}
-                value={apiUrl}
-                onChangeText={setApiUrl}
+                style={styles.input}
+                placeholder="e.g. owner@store.com or cashier_01"
+                placeholderTextColor="#94A3B8"
+                value={identifier}
+                onChangeText={setIdentifier}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <Text style={styles.configHint}>Default: http://localhost:4000/api/v1 (or 10.0.2.2 on Android)</Text>
             </View>
-          )}
 
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
-            onPress={handleLogin}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.submitButtonText}>Authenticate & Launch POS</Text>
+            {/* Password Input */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Lock size={13} color="#475569" style={styles.labelIcon} />
+                <Text style={styles.label}>Password</Text>
+              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="••••••••••••"
+                placeholderTextColor="#94A3B8"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Submit Sign In Button */}
+            <TouchableOpacity
+              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+              onPress={handleLogin}
+              disabled={isSubmitting}
+              activeOpacity={0.85}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.submitButtonText}>Sign In to Workspace</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Forgot Password Link */}
+            <TouchableOpacity style={styles.forgotBtn} onPress={handleForgotPassword} activeOpacity={0.7}>
+              <HelpCircle size={13} color="#64748B" style={styles.forgotIcon} />
+              <Text style={styles.forgotBtnText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Create Owner Account Section */}
+            <View style={styles.createAccountSection}>
+              <Text style={styles.createAccountPrompt}>New to AESCION Commerce?</Text>
+              <TouchableOpacity
+                style={styles.createAccountBtn}
+                onPress={handleCreateAccount}
+                activeOpacity={0.85}
+              >
+                <UserPlus size={16} color="#2563EB" style={styles.createAccountIcon} />
+                <Text style={styles.createAccountBtnText}>Create Owner Account</Text>
+                <ArrowRight size={14} color="#2563EB" />
+              </TouchableOpacity>
+            </View>
+
+            {/* API Server URL Config Toggle */}
+            <TouchableOpacity
+              style={styles.configToggle}
+              onPress={() => setShowConfig(!showConfig)}
+            >
+              <Server size={13} color="#64748B" style={styles.configIcon} />
+              <Text style={styles.configToggleText}>
+                {showConfig ? 'Hide Server Configuration' : 'Server Connection Settings'}
+              </Text>
+              {showConfig ? (
+                <ChevronUp size={14} color="#64748B" />
+              ) : (
+                <ChevronDown size={14} color="#64748B" />
+              )}
+            </TouchableOpacity>
+
+            {showConfig && (
+              <View style={styles.configBox}>
+                <Text style={styles.label}>API Base URL</Text>
+                <TextInput
+                  style={styles.configInput}
+                  value={apiUrl}
+                  onChangeText={setApiUrl}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Text style={styles.configHint}>Host URL: http://127.0.0.1:4000/api/v1 (USB ADB reverse)</Text>
+              </View>
             )}
-          </TouchableOpacity>
-        </View>
+          </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>AESCION Commerce Enterprise v2.0 • Offline-First Engine</Text>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>AESCION Commerce Enterprise v2.0 • Offline-First Engine</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#F1F5F9'
+    backgroundColor: '#F7F9FC'
+  },
+  container: {
+    flex: 1
+  },
+  topNav: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0'
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  backBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2563EB',
+    marginLeft: 6
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20
+    padding: 20,
+    paddingBottom: 40
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24
+    marginBottom: 20
   },
   brandIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: '#1E40AF',
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    backgroundColor: '#2563EB',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
-    shadowColor: '#1E40AF',
+    marginBottom: 10,
+    shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4
   },
-  brandIconText: {
-    fontSize: 26
+  brandTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center'
   },
-  brandTitle: {
-    fontSize: 24,
+  brandTitleBold: {
+    fontSize: 22,
     fontWeight: '900',
     color: '#0F172A',
-    letterSpacing: 1
+    letterSpacing: 0.5
+  },
+  brandTitleAccent: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#2563EB',
+    marginLeft: 4
   },
   brandSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
     fontWeight: '600',
     marginTop: 2
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 20,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 3
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 19,
+    fontWeight: '900',
     color: '#0F172A'
   },
   cardDesc: {
     fontSize: 12,
     color: '#64748B',
     marginTop: 4,
-    marginBottom: 20
+    marginBottom: 18
   },
   errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
     borderColor: '#FECACA',
@@ -218,67 +338,45 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16
   },
+  errorIcon: {
+    marginRight: 8
+  },
   errorText: {
     color: '#DC2626',
     fontSize: 12,
-    fontWeight: '600'
+    fontWeight: '600',
+    flex: 1
   },
   inputGroup: {
-    marginBottom: 16
+    marginBottom: 14
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6
+  },
+  labelIcon: {
+    marginRight: 6
   },
   label: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#334155',
-    marginBottom: 6
+    color: '#334155'
   },
   input: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 14,
-    paddingHorizontal: 16,
+    borderRadius: 12,
+    paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
     color: '#0F172A',
     fontWeight: '600'
   },
-  configToggle: {
-    alignSelf: 'flex-start',
-    marginVertical: 8
-  },
-  configToggleText: {
-    fontSize: 12,
-    color: '#2563EB',
-    fontWeight: '700'
-  },
-  configBox: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16
-  },
-  configInput: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 12,
-    color: '#0F172A',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace'
-  },
-  configHint: {
-    fontSize: 10,
-    color: '#94A3B8',
-    marginTop: 4
-  },
   submitButton: {
     backgroundColor: '#2563EB',
-    borderRadius: 16,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
@@ -295,6 +393,108 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800'
+  },
+  forgotBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    marginTop: 4
+  },
+  forgotIcon: {
+    marginRight: 5
+  },
+  forgotBtnText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600'
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E2E8F0'
+  },
+  dividerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    paddingHorizontal: 10
+  },
+  createAccountSection: {
+    alignItems: 'center',
+    marginTop: 2
+  },
+  createAccountPrompt: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: 8
+  },
+  createAccountBtn: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1.5,
+    borderColor: '#BFDBFE',
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 16
+  },
+  createAccountIcon: {
+    marginRight: 8
+  },
+  createAccountBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1D4ED8',
+    marginRight: 6
+  },
+  configToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginTop: 20
+  },
+  configIcon: {
+    marginRight: 6
+  },
+  configToggleText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '700',
+    marginRight: 4
+  },
+  configBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10
+  },
+  configInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 12,
+    color: '#0F172A',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    marginTop: 4
+  },
+  configHint: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 4
   },
   footer: {
     marginTop: 24,

@@ -22,16 +22,25 @@ export default function MobileProductsScreen() {
   const loadLocalCatalog = async (query = '') => {
     try {
       const db = await getLocalDatabase();
+      let rows: any[] = [];
       if (query.trim()) {
-        const rows = await db.getAllAsync<any>(
+        rows = await db.getAllAsync<any>(
           `SELECT * FROM local_products WHERE name LIKE ? OR sku LIKE ? OR category LIKE ?`,
           [`%${query}%`, `%${query}%`, `%${query}%`]
         );
-        setProducts(rows);
       } else {
-        const rows = await db.getAllAsync<any>(`SELECT * FROM local_products ORDER BY name ASC`);
-        setProducts(rows);
+        rows = await db.getAllAsync<any>(`SELECT * FROM local_products ORDER BY name ASC`);
       }
+
+      if ((!rows || rows.length === 0) && !query.trim() && organization?.id && activeBranch?.id) {
+        const onlineProducts = await MobileApiClient.get<any[]>('/products').catch(() => []);
+        if (onlineProducts && onlineProducts.length > 0) {
+          await syncInitialCatalog(organization.id, activeBranch.id);
+          rows = onlineProducts;
+        }
+      }
+
+      setProducts(rows || []);
     } catch (err) {
       console.warn('Failed to load local catalog:', err);
     }

@@ -4,6 +4,7 @@ import { ApiClient } from '../../services/api';
 import { useAuth } from '../../store/authContext';
 import { formatCurrencyINR } from '@aescion/shared-utils';
 import { PrinterAdapter } from '../../services/hardware';
+import { subscribeToRealtime } from '../../services/socket';
 
 export const InvoicesList: React.FC = () => {
   const { organization, activeBranch } = useAuth();
@@ -34,6 +35,12 @@ export const InvoicesList: React.FC = () => {
 
   useEffect(() => {
     fetchInvoices();
+    const unsub = subscribeToRealtime('invoice_created', () => fetchInvoices());
+    const unsubPulse = subscribeToRealtime('pulse_updated', () => fetchInvoices());
+    return () => {
+      unsub();
+      unsubPulse();
+    };
   }, [statusFilter, activeBranch?.id]);
 
   const filteredInvoices = useMemo(() => {

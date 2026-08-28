@@ -1,9 +1,28 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'fs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+function getPreloadPath(): string {
+  const localPreload = path.join(__dirname, 'preload.cjs');
+  if (fs.existsSync(localPreload)) return localPreload;
+  const jsPreload = path.join(__dirname, 'preload.js');
+  if (fs.existsSync(jsPreload)) return jsPreload;
+  return path.join(app.getAppPath(), 'electron/dist/preload.cjs');
+}
+
+function getIndexHtmlPath(): string {
+  const appPath = app.getAppPath();
+  const candidates = [
+    path.join(__dirname, '../../dist/index.html'),
+    path.join(__dirname, '../dist/index.html'),
+    path.join(appPath, 'dist/index.html')
+  ];
+
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return path.join(appPath, 'dist/index.html');
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -12,9 +31,9 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 600,
     title: 'AESCION Commerce Enterprise POS',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F9FC',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: getPreloadPath(),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true
@@ -24,7 +43,7 @@ function createWindow() {
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    win.loadFile(path.join(__dirname, '../dist/index.html'));
+    win.loadFile(getIndexHtmlPath());
   }
 }
 

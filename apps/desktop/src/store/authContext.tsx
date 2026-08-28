@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Organization, Branch, Role, BusinessType, RoleType, LoginResponse } from '@aescion/shared-types';
 import { ApiClient } from '../services/api';
-import { joinBranchRoom } from '../services/socket';
+import { joinBranchRoom, identifyPresence, disconnectPresence } from '../services/socket';
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +12,7 @@ interface AuthContextType {
   permissions: string[];
   capabilities: string[];
   isAuthenticated: boolean;
+  isSuperAdmin: boolean;
   isLoading: boolean;
   login: (data: LoginResponse) => void;
   switchBranch: (branchId: string) => Promise<void>;
@@ -45,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPermissions(data.permissions || []);
     setCapabilities(data.capabilities || []);
 
+    identifyPresence(data.user.id, data.organization.id, data.activeBranch.id, data.activeRole?.roleType);
     joinBranchRoom(data.organization.id, data.activeBranch.id);
   };
 
@@ -53,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    disconnectPresence();
     localStorage.removeItem('aescion_token');
     localStorage.removeItem('aescion_refresh_token');
     localStorage.removeItem('aescion_active_branch_id');
@@ -107,6 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         permissions,
         capabilities,
         isAuthenticated: !!user && !!organization,
+        isSuperAdmin: activeRole?.roleType === 'SUPER_ADMIN' || (activeRole?.roleType as any) === RoleType.SUPER_ADMIN,
         isLoading,
         login,
         switchBranch,

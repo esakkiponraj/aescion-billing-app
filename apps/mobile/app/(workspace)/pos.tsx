@@ -13,7 +13,7 @@ import {
 import { useMobileAuth } from '../../src/auth/authContext';
 import { getLocalDatabase } from '../../src/database/sqlite';
 import { MobileApiClient } from '../../src/api/mobileApiClient';
-import { enqueueOfflineMutation } from '../../src/sync/syncEngine';
+import { enqueueOfflineMutation, syncInitialCatalog } from '../../src/sync/syncEngine';
 import { defaultPrinter } from '../../src/hardware/printerAdapter';
 
 interface CartItem {
@@ -41,16 +41,25 @@ export default function MobilePOSScreen() {
   const loadProducts = async (query = '') => {
     try {
       const db = await getLocalDatabase();
+      let rows: any[] = [];
       if (query.trim()) {
-        const rows = await db.getAllAsync<any>(
+        rows = await db.getAllAsync<any>(
           `SELECT * FROM local_products WHERE name LIKE ? OR sku LIKE ? OR barcode = ? LIMIT 20`,
           [`%${query}%`, `%${query}%`, query]
         );
-        setProducts(rows);
       } else {
-        const rows = await db.getAllAsync<any>(`SELECT * FROM local_products LIMIT 20`);
-        setProducts(rows);
+        rows = await db.getAllAsync<any>(`SELECT * FROM local_products LIMIT 20`);
       }
+
+      if ((!rows || rows.length === 0) && !query.trim() && organization?.id && activeBranch?.id) {
+        const onlineProducts = await MobileApiClient.get<any[]>('/products').catch(() => []);
+        if (onlineProducts && onlineProducts.length > 0) {
+          await syncInitialCatalog(organization.id, activeBranch.id);
+          rows = onlineProducts;
+        }
+      }
+
+      setProducts(rows || []);
     } catch (err) {
       console.warn('Local product query failed:', err);
     }
@@ -126,21 +135,21 @@ export default function MobilePOSScreen() {
     setIsProcessing(true);
 
     const invoicePayload = {
-      items: cart.map((item) => ({
+      branchId: activeBranch?.id,
+      customerName: 'Walk-in Customer',
+      lines: cart.map((item) => ({
         productId: item.id,
         name: item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         taxRate: item.taxRate,
-        taxAmount: item.taxAmount,
-        total: item.lineTotal
+        taxMode: 'EXCLUSIVE',
+        unit: 'PCS'
       })),
-      subtotal,
-      taxTotal,
-      roundOff,
-      grandTotal,
-      paymentMethod: paymentMode,
-      paymentStatus: 'PAID'
+      payment: {
+        method: paymentMode,
+        amount: grandTotal
+      }
     };
 
     let billNumber = `TMP-MOB-${Date.now().toString().slice(-6)}`;

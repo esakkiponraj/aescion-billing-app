@@ -71,70 +71,70 @@ export async function enqueueOfflineMutation(mutation: {
     ]
   );
 
-  // If local invoice creation, optimistically reduce local stock in SQLite
-  if (mutation.entityType === 'INVOICE' && mutation.payload.items) {
-    for (const item of mutation.payload.items) {
-      if (item.productId) {
-        await db.runAsync(
-          `UPDATE local_products SET currentStock = currentStock - ? WHERE id = ?`,
-          [item.quantity || 1, item.productId]
-        );
-      }
-    }
-  }
-
   await refreshQueueCounts();
   return clientTransactionId;
 }
 
-export async function refreshQueueCounts(): Promise<void> {
+export async function refreshQueueCounts() {
   try {
     const db = await getLocalDatabase();
-    const rows = await db.getAllAsync<any>(`SELECT status, count(*) as count FROM sync_queue GROUP BY status`);
-    let pending = 0;
-    let conflict = 0;
-    let failed = 0;
+    const rows = await db.getAllAsync<{ status: string; count: number }>(
+      `SELECT status, COUNT(*) as count FROM sync_queue GROUP BY status`
+    );
 
-    (rows || []).forEach((r: any) => {
-      if (r.status === 'PENDING') pending = Number(r.count);
-      if (r.status === 'CONFLICT') conflict = Number(r.count);
-      if (r.status === 'FAILED') failed = Number(r.count);
-    });
+    let pendingCount = 0;
+    let conflictCount = 0;
+    let failedCount = 0;
 
-    updateStatus({ pendingCount: pending, conflictCount: conflict, failedCount: failed });
+    for (const r of rows) {
+      if (r.status === 'PENDING') pendingCount = r.count;
+      else if (r.status === 'CONFLICT') conflictCount = r.count;
+      else if (r.status === 'FAILED') failedCount = r.count;
+    }
+
+    updateStatus({ pendingCount, conflictCount, failedCount });
   } catch (err) {
-    console.warn('Failed to refresh queue counts:', err);
+    console.warn('Failed to query sync queue counts:', err);
   }
 }
 
-export async function syncInitialCatalog(organizationId: string, branchId: string): Promise<void> {
+export async function syncInitialCatalog(organizationId: string, branchId: string) {
   try {
     const db = await getLocalDatabase();
     const products = await MobileApiClient.get<any[]>('/products');
-    const now = new Date().toISOString();
+    if (!products || !Array.isArray(products)) return;
 
-    for (const p of products || []) {
+    const now = new Date().toISOString();
+    for (const p of products) {
+      const params = [
+        p.id,
+        organizationId,
+        branchId,
+        p.name || 'Unnamed Item',
+        p.sku || null,
+        p.barcode || null,
+        Number(p.sellingPrice) || 0,
+        p.mrp ? Number(p.mrp) : null,
+        Number(p.taxRate) || 0,
+        p.hsn || null,
+        p.category || null,
+        Number(p.currentStock) || 0,
+        p.batchNumber || null,
+        p.expiryDate ? new Date(p.expiryDate).toISOString() : null,
+        now,
+        p.updatedAt ? new Date(p.updatedAt).toISOString() : now
+      ];
+
       await db.runAsync(
-        `INSERT OR REPLACE INTO local_products 
-         (id, organizationId, branchId, name, sku, barcode, sellingPrice, mrp, taxRate, hsn, category, currentStock, batchNumber, expiryDate, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          p.id,
-          organizationId,
-          branchId,
-          p.name,
-          p.sku || null,
-          p.barcode || null,
-          Number(p.sellingPrice) || 0,
-          Number(p.mrp) || null,
-          Number(p.taxRate) || 0,
-          p.hsn || null,
-          p.category || null,
-          Number(p.currentStock) || 0,
-          p.batchNumber || null,
-          p.expiryDate ? new Date(p.expiryDate).toISOString() : null,
-          now
-        ]
+        `INSERT OR REPLACE INTO local_products (id, organizationId, branchId, name, sku, barcode, sellingPrice, mrp, taxRate, hsn, category, currentStock, batchNumber, expiryDate, lastSyncedAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params
+      );
+
+      await db.runAsync(
+        `INSERT OR REPLACE INTO products (id, organizationId, branchId, name, sku, barcode, sellingPrice, mrp, taxRate, hsn, category, currentStock, batchNumber, expiryDate, lastSyncedAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params
       );
     }
   } catch (err) {
@@ -213,3 +213,5 @@ export async function processSyncQueue(): Promise<{ synced: number; failed: numb
 
   return { synced, failed, conflicts };
 }
+
+export const triggerImmediateSync = processSyncQueue;

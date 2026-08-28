@@ -20,7 +20,7 @@ export const InvoiceLineItemSchema = z.object({
 });
 
 export const CreateInvoiceSchema = z.object({
-  branchId: z.string().min(1, 'Branch is required'),
+  branchId: z.string().optional(),
   registerId: z.string().optional(),
   customerId: z.string().optional(),
   customerName: z.string().default('Walk-in Customer'),

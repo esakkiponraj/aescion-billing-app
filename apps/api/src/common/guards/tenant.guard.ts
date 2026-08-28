@@ -17,6 +17,19 @@ export class TenantGuard implements CanActivate {
     // Attach verified organizationId from token
     request.organizationId = user.organizationId;
 
+    // Fetch authoritative organization to ensure industry pack context
+    const org = await this.prisma.organization.findUnique({
+      where: { id: user.organizationId },
+      select: { id: true, name: true, businessType: true }
+    });
+
+    if (!org) {
+      throw new ForbiddenException('Organization not found.');
+    }
+
+    request.organization = org;
+    request.businessType = org.businessType;
+
     const requestedBranchId = request.headers['x-branch-id'] as string;
     if (requestedBranchId) {
       // Validate that requested branchId strictly belongs to the authenticated organization

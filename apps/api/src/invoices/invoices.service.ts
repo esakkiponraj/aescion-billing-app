@@ -1,20 +1,28 @@
-import { Injectable, BadRequestException, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
+import {
+  InvoiceStatus,
+  PaymentMethod,
+  PaymentStatus,
+  StockEventType,
+  TaxMode
+} from '@aescion/shared-types';
 import { CreateInvoiceInput } from '@aescion/validation';
-import { calculateLineTax, computeInvoiceTotals, formatDocumentNumber, generateIdempotencyKey } from '@aescion/shared-utils';
-import { InvoiceStatus, PaymentMethod, PaymentStatus, StockEventType, TaxMode } from '@aescion/shared-types';
+import { calculateLineTax, computeInvoiceTotals, formatDocumentNumber } from '@aescion/shared-utils';
 import { AuditService } from '../common/services/audit.service';
+import { EventsGateway } from '../realtime/events.gateway';
 
 @Injectable()
 export class InvoiceService {
   constructor(
     private prisma: PrismaService,
-    private auditService: AuditService
+    private auditService: AuditService,
+    private eventsGateway: EventsGateway
   ) {}
 
   async findAll(organizationId: string, branchId?: string, status?: string, dateFrom?: string, dateTo?: string) {
     const where: any = { organizationId };
-    if (branchId) where.branchId = branchId;
+    if (branchId && branchId !== 'ALL') where.branchId = branchId;
     if (status) where.status = status;
     if (dateFrom || dateTo) {
       where.createdAt = {};
@@ -27,9 +35,11 @@ export class InvoiceService {
       include: {
         lines: true,
         payments: true,
-        receipts: true
+        receipts: true,
+        branch: true
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      take: 200
     });
   }
 
@@ -43,36 +53,41 @@ export class InvoiceService {
         branch: true
       }
     });
-    if (!invoice) throw new NotFoundException('Invoice not found');
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
     return invoice;
   }
 
   async create(organizationId: string, branchId: string, userId: string, userName: string, dto: CreateInvoiceInput) {
-    // 1. Idempotency check
+    // 1. Idempotency protection check
     if (dto.idempotencyKey) {
-      const existing = await this.prisma.invoice.findUnique({
-        where: { idempotencyKey: dto.idempotencyKey },
-        include: { lines: true, payments: true, receipts: true }
+      const existing = await this.prisma.invoice.findFirst({
+        where: { organizationId, idempotencyKey: dto.idempotencyKey },
+        include: { lines: true, payments: true, receipts: true, branch: true }
       });
       if (existing) {
-        return existing; // Return existing without duplicate processing
+        return existing;
       }
     }
 
-    // 2. Fetch Organization Settings & Branch
-    const [org, docSettings, branch] = await Promise.all([
-      this.prisma.organization.findUnique({ where: { id: organizationId } }),
-      this.prisma.documentSettings.findUnique({ where: { organizationId } }),
-      this.prisma.branch.findUnique({ where: { id: branchId } })
-    ]);
+    // 2. Fetch branch and settings for doc numbering
+    const branch = await this.prisma.branch.findUnique({
+      where: { id: branchId }
+    });
+    if (!branch) {
+      throw new NotFoundException('Target branch not found');
+    }
 
-    if (!branch) throw new BadRequestException('Invalid branch specified');
+    const docSettings = await this.prisma.documentSettings.findUnique({
+      where: { organizationId }
+    });
 
-    // 3. Authoritative Line Calculation & Medicine Expiry Guard
+    // 3. Batch Compliance & Line Item Calculations
     const calculatedLines: any[] = [];
     for (const item of dto.lines) {
-      // If batch is provided, check if it is expired
-      if (item.batchNumber && item.productId) {
+      if (item.productId && item.batchNumber) {
         const batch = await this.prisma.medicineBatch.findFirst({
           where: {
             organizationId,
@@ -80,18 +95,22 @@ export class InvoiceService {
             batchNumber: item.batchNumber
           }
         });
-        if (batch && (batch.isExpired || new Date(batch.expiryDate).getTime() < Date.now())) {
-          throw new ForbiddenException(`SAFETY BLOCK: Medicine batch ${item.batchNumber} is expired and cannot be billed.`);
+
+        if (batch && (batch.isExpired || new Date(batch.expiryDate) < new Date())) {
+          throw new ForbiddenException(
+            `COMPLIANCE BLOCK: Batch ${batch.batchNumber} of ${batch.medicineName} is EXPIRED (${new Date(
+              batch.expiryDate
+            ).toLocaleDateString()}). Sale strictly prohibited.`
+          );
         }
       }
 
-      const lineCalc = calculateLineTax({
-        quantity: item.quantity,
+      const lineTax = calculateLineTax({
         unitPrice: item.unitPrice,
-        discountRate: item.discountRate,
-        discountAmount: item.discountAmount,
+        quantity: item.quantity,
+        discountRate: item.discountRate || 0,
         taxRate: item.taxRate,
-        taxMode: item.taxMode || TaxMode.EXCLUSIVE,
+        taxMode: (item.taxMode as TaxMode) || TaxMode.EXCLUSIVE,
         isInterState: dto.isInterState
       });
 
@@ -99,30 +118,30 @@ export class InvoiceService {
         productId: item.productId,
         variantId: item.variantId,
         name: item.name,
-        sku: item.sku,
-        hsn: item.hsn,
+        sku: item.sku || 'SKU-GENERIC',
+        hsn: item.hsn || '',
         quantity: item.quantity,
         unit: item.unit || 'PCS',
         unitPrice: item.unitPrice,
         discountRate: item.discountRate || 0,
-        discountAmount: lineCalc.appliedDiscount,
+        discountAmount: lineTax.appliedDiscount,
         taxRate: item.taxRate,
-        taxMode: item.taxMode || 'EXCLUSIVE',
-        taxableAmount: lineCalc.taxableAmount,
-        cgstAmount: lineCalc.cgstAmount,
-        sgstAmount: lineCalc.sgstAmount,
-        igstAmount: lineCalc.igstAmount,
-        cessAmount: lineCalc.cessAmount,
-        totalTax: lineCalc.totalTax,
-        lineSubtotal: lineCalc.lineSubtotal,
-        lineTotal: lineCalc.lineTotal,
+        taxMode: item.taxMode || TaxMode.EXCLUSIVE,
+        taxableAmount: lineTax.taxableAmount,
+        cgstAmount: lineTax.cgstAmount,
+        sgstAmount: lineTax.sgstAmount,
+        igstAmount: lineTax.igstAmount,
+        cessAmount: lineTax.cessAmount,
+        totalTax: lineTax.totalTax,
+        lineSubtotal: lineTax.lineSubtotal,
+        lineTotal: lineTax.lineTotal,
         batchNumber: item.batchNumber,
-        expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined,
+        expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
         notes: item.notes
       });
     }
 
-    // 4. Compute Invoice Totals
+    // 4. Compute Master Invoice Totals
     const totals = computeInvoiceTotals(
       calculatedLines.map((l) => ({
         lineSubtotal: l.lineSubtotal,
@@ -133,53 +152,41 @@ export class InvoiceService {
         cessAmount: l.cessAmount,
         appliedDiscount: l.discountAmount,
         lineTotal: l.lineTotal
-      })),
-      docSettings?.enableRoundOff ?? true
+      }))
     );
 
-    // 5. Payment details
-    let paidAmount = 0;
-    let paymentMethod: PaymentMethod = PaymentMethod.CASH;
-    let paymentRef = '';
-    let splitDetails: any = null;
-
-    if (dto.payment) {
-      paidAmount = Math.min(totals.grandTotal, dto.payment.amount);
-      paymentMethod = dto.payment.method;
-      paymentRef = dto.payment.referenceNumber || '';
-      splitDetails = dto.payment.splitDetails || null;
-    }
-
-    const balanceAmount = Math.max(0, Math.round((totals.grandTotal - paidAmount) * 100) / 100);
+    // 5. Payment calculations
+    const paidAmount = dto.payment ? dto.payment.amount : 0;
+    const balanceAmount = Math.max(0, totals.grandTotal - paidAmount);
     const invoiceStatus = balanceAmount === 0 ? InvoiceStatus.PAID : paidAmount > 0 ? InvoiceStatus.PARTIALLY_PAID : InvoiceStatus.ISSUED;
 
-    // Customer Credit Check
-    if (balanceAmount > 0 && dto.customerId) {
-      const customer = await this.prisma.customer.findUnique({ where: { id: dto.customerId } });
-      if (customer && customer.creditLimit > 0) {
-        if (customer.currentOutstanding + balanceAmount > customer.creditLimit) {
-          throw new ForbiddenException(`Customer credit limit exceeded. Max available: ₹${(customer.creditLimit - customer.currentOutstanding).toFixed(2)}`);
-        }
-      }
-    }
+    const paymentMethod = dto.payment?.method || PaymentMethod.CASH;
+    const paymentRef = dto.payment?.referenceNumber;
+    const splitDetails = dto.payment?.splitDetails;
 
-    // 6. Execute atomic transaction
-    return this.prisma.$transaction(async (tx) => {
-      // Generate sequential invoice number
-      const invoiceCount = await tx.invoice.count({ where: { organizationId } });
-      const invoiceNumber = formatDocumentNumber(docSettings?.invoicePrefix || 'INV', invoiceCount + 1, branch.code);
+    // 6. Atomic Transaction for Invoice, StockLedger, Customer, Payment, and Receipt
+    const createdInvoice = await this.prisma.$transaction(async (tx) => {
+      const invoiceCount = await tx.invoice.count({
+        where: { organizationId }
+      });
 
-      // Create Invoice
+      const invoiceNumber = formatDocumentNumber(
+        docSettings?.invoicePrefix || 'INV',
+        invoiceCount + 1,
+        branch.code
+      );
+
+      // Create Invoice record
       const invoice = await tx.invoice.create({
         data: {
           organizationId,
           branchId,
           registerId: dto.registerId,
-          invoiceNumber,
           customerId: dto.customerId,
           customerName: dto.customerName || 'Walk-in Customer',
           customerPhone: dto.customerPhone,
           customerGstin: dto.customerGstin,
+          invoiceNumber,
           isB2B: dto.isB2B || false,
           isInterState: dto.isInterState || false,
           status: invoiceStatus,
@@ -194,8 +201,8 @@ export class InvoiceService {
           grandTotal: totals.grandTotal,
           paidAmount,
           balanceAmount,
+          idempotencyKey: dto.idempotencyKey,
           createdById: userId,
-          idempotencyKey: dto.idempotencyKey || generateIdempotencyKey('inv'),
           lines: {
             create: calculatedLines
           }
@@ -239,9 +246,10 @@ export class InvoiceService {
                 where: { organizationId, medicineId: product.id, batchNumber: line.batchNumber }
               });
               if (batch) {
+                const newBatchQty = Math.max(0, batch.quantityRemaining - line.quantity);
                 await tx.medicineBatch.update({
                   where: { id: batch.id },
-                  data: { quantityRemaining: Math.max(0, batch.quantityRemaining - line.quantity) }
+                  data: { quantityRemaining: newBatchQty }
                 });
               }
             }
@@ -249,14 +257,14 @@ export class InvoiceService {
         }
       }
 
-      // Customer Ledger debit if credit balance exists
+      // Customer outstanding balance update & Customer Ledger entry
       if (balanceAmount > 0 && dto.customerId) {
         const customer = await tx.customer.findUnique({ where: { id: dto.customerId } });
         if (customer) {
-          const newOutstanding = customer.currentOutstanding + balanceAmount;
+          const updatedOutstanding = customer.currentOutstanding + balanceAmount;
           await tx.customer.update({
             where: { id: customer.id },
-            data: { currentOutstanding: newOutstanding }
+            data: { currentOutstanding: updatedOutstanding }
           });
 
           await tx.customerLedger.create({
@@ -265,7 +273,7 @@ export class InvoiceService {
               customerId: customer.id,
               transactionType: 'INVOICE_DEBIT',
               amount: balanceAmount,
-              balanceAfter: newOutstanding,
+              balanceAfter: updatedOutstanding,
               referenceId: invoice.id,
               notes: `Credit invoice ${invoice.invoiceNumber}`
             }
@@ -326,6 +334,11 @@ export class InvoiceService {
         include: { lines: true, payments: true, receipts: true, branch: true }
       });
     });
+
+    // Real-time notification broadcast
+    this.eventsGateway.emitInvoiceCreated(organizationId, branchId, createdInvoice);
+
+    return createdInvoice;
   }
 
   async voidInvoice(organizationId: string, id: string, userId: string, userName: string, reason: string) {
@@ -334,13 +347,13 @@ export class InvoiceService {
       throw new BadRequestException('Invoice is already void or cancelled');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const voided = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.invoice.update({
         where: { id: invoice.id },
         data: { status: InvoiceStatus.VOID, notes: `VOIDED: ${reason}` }
       });
 
-      // Restore stock
+      // Restore inventory
       for (const line of invoice.lines) {
         if (line.productId) {
           const product = await tx.product.findUnique({ where: { id: line.productId } });
@@ -356,6 +369,7 @@ export class InvoiceService {
                 organizationId,
                 branchId: invoice.branchId,
                 productId: product.id,
+                variantId: line.variantId,
                 eventType: StockEventType.SALE_RETURN,
                 quantityChange: line.quantity,
                 balanceAfter: restoredStock,
@@ -370,7 +384,7 @@ export class InvoiceService {
         }
       }
 
-      // Reverse Customer Credit if applicable
+      // Revert customer outstanding balance if credit was used
       if (invoice.balanceAmount > 0 && invoice.customerId) {
         const customer = await tx.customer.findUnique({ where: { id: invoice.customerId } });
         if (customer) {
@@ -388,7 +402,7 @@ export class InvoiceService {
               amount: invoice.balanceAmount,
               balanceAfter: newOutstanding,
               referenceId: invoice.id,
-              notes: `Reversal for voided invoice ${invoice.invoiceNumber}`
+              notes: `Void of invoice ${invoice.invoiceNumber}`
             }
           });
         }
@@ -402,10 +416,13 @@ export class InvoiceService {
         action: 'INVOICE_VOID',
         entityType: 'INVOICE',
         entityId: invoice.id,
-        details: { reason }
+        details: { invoiceNumber: invoice.invoiceNumber, reason }
       });
 
       return updated;
     });
+
+    this.eventsGateway.emitPulseUpdate(organizationId, invoice.branchId);
+    return voided;
   }
 }

@@ -2,31 +2,36 @@ import React, { useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMobileAuth } from '../src/auth/authContext';
+import { MobileLandingScreen } from '../src/screens/MobileLandingScreen';
 
 export default function IndexScreen() {
   const { isAuthenticated, isLoading } = useMobileAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading) {
-      if (isAuthenticated) {
-        router.replace('/(workspace)/dashboard');
-      } else {
-        router.replace('/login');
-      }
+    if (!isLoading && isAuthenticated) {
+      router.replace('/(workspace)/dashboard');
     }
   }, [isLoading, isAuthenticated]);
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.logoBadge}>
-        <Text style={styles.logoText}>AESCION</Text>
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.logoBadge}>
+          <Text style={styles.logoText}>AESCION</Text>
+        </View>
+        <Text style={styles.title}>Enterprise Mobile POS</Text>
+        <ActivityIndicator size="large" color="#2563EB" style={styles.loader} />
+        <Text style={styles.subtitle}>Restoring secure session...</Text>
       </View>
-      <Text style={styles.title}>Enterprise Mobile POS</Text>
-      <ActivityIndicator size="large" color="#2563EB" style={styles.loader} />
-      <Text style={styles.subtitle}>Restoring secure session...</Text>
-    </View>
-  );
+    );
+  }
+
+  if (isAuthenticated) {
+    return null;
+  }
+
+  return <MobileLandingScreen />;
 }
 
 const styles = StyleSheet.create({
