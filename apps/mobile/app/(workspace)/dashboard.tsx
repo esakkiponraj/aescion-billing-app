@@ -249,43 +249,267 @@ export default function MobileDashboardScreen() {
         </View>
       )}
 
-      {/* 5. Live Commercial Counters (Quotations, Invoices, Receipts, Orders, Dispatches) */}
+      {/* 5. Fast Primary Quick Actions Grid (Industry-Tailored, Max 4 Actions) */}
+      <Text style={styles.sectionHeader}>Quick Actions</Text>
+      <View style={styles.quickActionGrid}>
+        {businessType === BusinessType.RESTAURANT ? (
+          <>
+            <TouchableOpacity style={[styles.quickActionBtn, styles.bgBlue]} onPress={() => router.push('/(workspace)/pos' as any)}>
+              <Text style={styles.quickActionIcon}>⚡</Text>
+              <View>
+                <Text style={styles.quickActionTitle}>Fast POS</Text>
+                <Text style={styles.quickActionSub}>Express Dine-in</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.quickActionBtn, styles.bgAmber]} onPress={() => router.push('/(workspace)/restaurant' as any)}>
+              <Text style={styles.quickActionIcon}>🍽️</Text>
+              <View>
+                <Text style={styles.quickActionTitle}>Dining Tables</Text>
+                <Text style={styles.quickActionSub}>Live Floor View</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.quickActionBtn, styles.bgEmerald]} onPress={() => router.push('/(workspace)/restaurant' as any)}>
+              <Text style={styles.quickActionIcon}>👨‍🍳</Text>
+              <View>
+                <Text style={styles.quickActionTitle}>Kitchen KOT</Text>
+                <Text style={styles.quickActionSub}>Active Orders</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.quickActionBtn, styles.bgIndigo]} onPress={() => router.push('/(workspace)/products' as any)}>
+              <Text style={styles.quickActionIcon}>📋</Text>
+              <View>
+                <Text style={styles.quickActionTitle}>Menu Catalog</Text>
+                <Text style={styles.quickActionSub}>Food & Pricing</Text>
+              </View>
+            </TouchableOpacity>
+          </>
+        ) : businessType === BusinessType.WHOLESALE ? (
+          <>
+            <TouchableOpacity style={[styles.quickActionBtn, styles.bgBlue]} onPress={() => router.push('/(workspace)/wholesale' as any)}>
+              <Text style={styles.quickActionIcon}>🚚</Text>
+              <View>
+                <Text style={styles.quickActionTitle}>Sales Orders</Text>
+                <Text style={styles.quickActionSub}>B2B Contracts</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.quickActionBtn, styles.bgAmber]} onPress={() => router.push('/(workspace)/wholesale' as any)}>
+              <Text style={styles.quickActionIcon}>📦</Text>
+              <View>
+                <Text style={styles.quickActionTitle}>Dispatch DC</Text>
+                <Text style={styles.quickActionSub}>Delivery Challan</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.quickActionBtn, styles.bgEmerald]} onPress={() => router.push('/(workspace)/pos' as any)}>
+              <Text style={styles.quickActionIcon}>⚡</Text>
+              <View>
+                <Text style={styles.quickActionTitle}>Fast Bill</Text>
+                <Text style={styles.quickActionSub}>Tax Invoice</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.quickActionBtn, styles.bgIndigo]} onPress={() => router.push('/(workspace)/customers' as any)}>
+              <Text style={styles.quickActionIcon}>👥</Text>
+              <View>
+                <Text style={styles.quickActionTitle}>B2B Clients</Text>
+                <Text style={styles.quickActionSub}>Credit & Ledger</Text>
+              </View>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity style={[styles.quickActionBtn, styles.bgBlue]} onPress={() => router.push('/(workspace)/pos' as any)}>
+              <Text style={styles.quickActionIcon}>⚡</Text>
+              <View>
+                <Text style={styles.quickActionTitle}>Fast POS</Text>
+                <Text style={styles.quickActionSub}>Bill & Collect</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.quickActionBtn, styles.bgAmber]} onPress={() => router.push('/(workspace)/quotations' as any)}>
+              <Text style={styles.quickActionIcon}>📑</Text>
+              <View>
+                <Text style={styles.quickActionTitle}>New Quote</Text>
+                <Text style={styles.quickActionSub}>Price Estimate</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.quickActionBtn, styles.bgEmerald]} onPress={() => router.push('/(workspace)/products' as any)}>
+              <Text style={styles.quickActionIcon}>📦</Text>
+              <View>
+                <Text style={styles.quickActionTitle}>Products</Text>
+                <Text style={styles.quickActionSub}>Add / Stock</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.quickActionBtn, styles.bgIndigo]} onPress={() => router.push('/(workspace)/customers' as any)}>
+              <Text style={styles.quickActionIcon}>👥</Text>
+              <View>
+                <Text style={styles.quickActionTitle}>Customers</Text>
+                <Text style={styles.quickActionSub}>Ledger & KYC</Text>
+              </View>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+
+      {/* 6. Live Commercial Document Counters (Strictly Industry-Adapted) */}
       <View style={styles.countersCard}>
         <Text style={styles.cardHeaderTitle}>Live Commercial Document Counters</Text>
         <View style={styles.counterGrid}>
-          <TouchableOpacity style={styles.counterItem} onPress={() => router.push('/(workspace)/billing')}>
+          <TouchableOpacity style={styles.counterItem} onPress={() => router.push('/(workspace)/billing' as any)}>
             <Text style={styles.counterLabel}>🧾 Invoices</Text>
             <Text style={styles.counterValue}>{completedBills}</Text>
             <Text style={styles.counterSub}>Billed & Paid</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.counterItem} onPress={() => router.push('/(workspace)/quotations')}>
+          <TouchableOpacity style={styles.counterItem} onPress={() => router.push('/(workspace)/quotations' as any)}>
             <Text style={styles.counterLabel}>📑 Quotations</Text>
             <Text style={styles.counterValue}>{quotationCount}</Text>
             <Text style={styles.counterSub}>Active Estimates</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.counterItem} onPress={() => router.push('/(workspace)/receipts')}>
+          <TouchableOpacity style={styles.counterItem} onPress={() => router.push('/(workspace)/receipts' as any)}>
             <Text style={styles.counterLabel}>📜 Receipts</Text>
             <Text style={styles.counterValue}>{receiptCount}</Text>
             <Text style={styles.counterSub}>Settled Vouchers</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.counterItem} onPress={() => router.push('/(workspace)/wholesale')}>
-            <Text style={styles.counterLabel}>🚚 Sales Orders</Text>
-            <Text style={styles.counterValue}>{salesOrderCount}</Text>
-            <Text style={styles.counterSub}>B2B Contracts</Text>
-          </TouchableOpacity>
+          {/* Wholesale-Specific Counters ONLY */}
+          {businessType === BusinessType.WHOLESALE && (
+            <>
+              <TouchableOpacity style={styles.counterItem} onPress={() => router.push('/(workspace)/wholesale' as any)}>
+                <Text style={styles.counterLabel}>🚚 Sales Orders</Text>
+                <Text style={styles.counterValue}>{salesOrderCount}</Text>
+                <Text style={styles.counterSub}>B2B Contracts</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity style={styles.counterItem} onPress={() => router.push('/(workspace)/wholesale')}>
-            <Text style={styles.counterLabel}>📦 Pending DC</Text>
-            <Text style={[styles.counterValue, { color: '#EF4444' }]}>{pendingDispatches}</Text>
-            <Text style={styles.counterSub}>Needs Dispatch</Text>
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.counterItem} onPress={() => router.push('/(workspace)/wholesale' as any)}>
+                <Text style={styles.counterLabel}>📦 Pending DC</Text>
+                <Text style={[styles.counterValue, { color: '#EF4444' }]}>{pendingDispatches}</Text>
+                <Text style={styles.counterSub}>Needs Dispatch</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </View>
 
-      {/* 6. Live Tender Collections Breakdown */}
+      {/* 7. Industry Specific Live Operational Panel */}
+      {businessType === BusinessType.RESTAURANT && (
+        <TouchableOpacity
+          style={styles.industryPanelCard}
+          onPress={() => router.push('/(workspace)/restaurant' as any)}
+          activeOpacity={0.85}
+        >
+          <View style={styles.industryPanelHeader}>
+            <Text style={styles.industryPanelTitle}>🍽️ Restaurant Live Floor</Text>
+            <Text style={styles.industryPanelLink}>Manage Tables →</Text>
+          </View>
+          <View style={styles.industryPanelGrid}>
+            <View style={styles.industryPanelStatBox}>
+              <Text style={styles.industryPanelStatVal}>
+                {pulseData?.industryKpis?.restaurant?.occupiedTables ?? 0} / {pulseData?.industryKpis?.restaurant?.totalTables ?? 0}
+              </Text>
+              <Text style={styles.industryPanelStatLbl}>Occupied Tables</Text>
+            </View>
+            <View style={styles.industryPanelStatBox}>
+              <Text style={[styles.industryPanelStatVal, { color: '#D97706' }]}>
+                {pulseData?.industryKpis?.restaurant?.activeKots ?? 0}
+              </Text>
+              <Text style={styles.industryPanelStatLbl}>Active KOTs</Text>
+            </View>
+            <View style={styles.industryPanelStatBox}>
+              <Text style={[styles.industryPanelStatVal, { color: '#059669' }]}>
+                {pulseData?.industryKpis?.restaurant?.readyOrders ?? completedBills}
+              </Text>
+              <Text style={styles.industryPanelStatLbl}>Bills Settled</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {businessType === BusinessType.SERVICE && (
+        <TouchableOpacity
+          style={styles.industryPanelCard}
+          onPress={() => router.push('/(workspace)/service' as any)}
+          activeOpacity={0.85}
+        >
+          <View style={styles.industryPanelHeader}>
+            <Text style={styles.industryPanelTitle}>🔧 Service Center Live Status</Text>
+            <Text style={styles.industryPanelLink}>View Job Cards →</Text>
+          </View>
+          <View style={styles.industryPanelGrid}>
+            <View style={styles.industryPanelStatBox}>
+              <Text style={styles.industryPanelStatVal}>
+                {pulseData?.industryKpis?.service?.openJobs ?? 0}
+              </Text>
+              <Text style={styles.industryPanelStatLbl}>Open Repairs</Text>
+            </View>
+            <View style={styles.industryPanelStatBox}>
+              <Text style={[styles.industryPanelStatVal, { color: '#059669' }]}>
+                {pulseData?.industryKpis?.service?.readyJobs ?? 0}
+              </Text>
+              <Text style={styles.industryPanelStatLbl}>Ready for Pickup</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {businessType === BusinessType.PHARMACY && (
+        <TouchableOpacity
+          style={styles.industryPanelCard}
+          onPress={() => router.push('/(workspace)/pharmacy' as any)}
+          activeOpacity={0.85}
+        >
+          <View style={styles.industryPanelHeader}>
+            <Text style={styles.industryPanelTitle}>💊 Pharmacy Compliance & Expiry</Text>
+            <Text style={styles.industryPanelLink}>Batch Directory →</Text>
+          </View>
+          <View style={styles.industryPanelGrid}>
+            <View style={styles.industryPanelStatBox}>
+              <Text style={[styles.industryPanelStatVal, { color: '#EF4444' }]}>
+                {pulseData?.industryKpis?.pharmacy?.nearExpiryMedicines ?? 0}
+              </Text>
+              <Text style={styles.industryPanelStatLbl}>Near Expiry</Text>
+            </View>
+            <View style={styles.industryPanelStatBox}>
+              <Text style={[styles.industryPanelStatVal, { color: '#D97706' }]}>
+                {lowStockCount}
+              </Text>
+              <Text style={styles.industryPanelStatLbl}>Low Stock Meds</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {businessType === BusinessType.WHOLESALE && (
+        <TouchableOpacity
+          style={styles.industryPanelCard}
+          onPress={() => router.push('/(workspace)/wholesale' as any)}
+          activeOpacity={0.85}
+        >
+          <View style={styles.industryPanelHeader}>
+            <Text style={styles.industryPanelTitle}>🚚 Wholesale B2B Logistics</Text>
+            <Text style={styles.industryPanelLink}>Dispatch Center →</Text>
+          </View>
+          <View style={styles.industryPanelGrid}>
+            <View style={styles.industryPanelStatBox}>
+              <Text style={styles.industryPanelStatVal}>{salesOrderCount}</Text>
+              <Text style={styles.industryPanelStatLbl}>Sales Orders</Text>
+            </View>
+            <View style={styles.industryPanelStatBox}>
+              <Text style={[styles.industryPanelStatVal, { color: '#EF4444' }]}>{pendingDispatches}</Text>
+              <Text style={styles.industryPanelStatLbl}>Pending Challans</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* 8. Live Tender Collections Breakdown */}
       <View style={styles.tenderCard}>
         <Text style={styles.cardHeaderTitle}>Live Tender Collections Breakdown</Text>
         <View style={styles.tenderGrid}>
@@ -308,128 +532,7 @@ export default function MobileDashboardScreen() {
         </View>
       </View>
 
-      {/* 7. Quick POS Launch Button */}
-      <TouchableOpacity style={styles.posLaunchButton} onPress={() => router.push('/(workspace)/pos')}>
-        <View style={styles.posIconCircle}>
-          <Text style={styles.posIcon}>⚡</Text>
-        </View>
-        <View style={styles.posTextContainer}>
-          <Text style={styles.posLaunchTitle}>Launch Fast POS</Text>
-          <Text style={styles.posLaunchDesc}>Scan barcodes, take orders & collect payments</Text>
-        </View>
-        <Text style={styles.arrowIcon}>→</Text>
-      </TouchableOpacity>
-
-      {/* 8. Industry Specific Live KPIs */}
-      {pulseData?.industryKpis && (
-        <View style={styles.industryKpiContainer}>
-          {businessType === BusinessType.RESTAURANT && pulseData.industryKpis.restaurant && (
-            <View style={styles.industryKpiCard}>
-              <Text style={styles.industryKpiTitle}>🍽️ Restaurant Live Floor</Text>
-              <View style={styles.industryKpiRow}>
-                <Text style={styles.industryKpiStat}>
-                  Occupied Tables: <Text style={styles.boldText}>{pulseData.industryKpis.restaurant.occupiedTables} / {pulseData.industryKpis.restaurant.totalTables}</Text>
-                </Text>
-                <Text style={styles.industryKpiStat}>
-                  Active KOTs: <Text style={styles.boldText}>{pulseData.industryKpis.restaurant.activeKots}</Text>
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {businessType === BusinessType.SERVICE && pulseData.industryKpis.service && (
-            <View style={styles.industryKpiCard}>
-              <Text style={styles.industryKpiTitle}>🔧 Service Center Status</Text>
-              <View style={styles.industryKpiRow}>
-                <Text style={styles.industryKpiStat}>
-                  Open Jobs: <Text style={styles.boldText}>{pulseData.industryKpis.service.openJobs}</Text>
-                </Text>
-                <Text style={styles.industryKpiStat}>
-                  Ready for Delivery: <Text style={styles.boldText}>{pulseData.industryKpis.service.readyJobs}</Text>
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {businessType === BusinessType.PHARMACY && pulseData.industryKpis.pharmacy && (
-            <View style={styles.industryKpiCard}>
-              <Text style={styles.industryKpiTitle}>💊 Pharmacy Compliance</Text>
-              <View style={styles.industryKpiRow}>
-                <Text style={styles.industryKpiStat}>
-                  Near Expiry: <Text style={styles.boldText}>{pulseData.industryKpis.pharmacy.nearExpiryMedicines}</Text>
-                </Text>
-                <Text style={styles.industryKpiStat}>
-                  Quarantined: <Text style={styles.boldText}>{pulseData.industryKpis.pharmacy.expiredCount}</Text>
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* 9. Operational Workflows Navigation Grid */}
-      <Text style={styles.sectionHeader}>Business Workflows & Management</Text>
-      <View style={styles.actionGrid}>
-        <TouchableOpacity style={styles.actionTile} onPress={() => router.push('/(workspace)/shifts')}>
-          <Text style={styles.tileEmoji}>⏱️</Text>
-          <Text style={styles.tileTitle}>Cashier Shifts</Text>
-          <Text style={styles.tileDesc}>Open / close drawer</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionTile} onPress={() => router.push('/(workspace)/products')}>
-          <Text style={styles.tileEmoji}>📦</Text>
-          <Text style={styles.tileTitle}>Item Catalog</Text>
-          <Text style={styles.tileDesc}>{lowStockCount > 0 ? `${lowStockCount} low stock` : 'Live stock & MRP'}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionTile} onPress={() => router.push('/(workspace)/billing')}>
-          <Text style={styles.tileEmoji}>🧾</Text>
-          <Text style={styles.tileTitle}>Tax Invoices</Text>
-          <Text style={styles.tileDesc}>Receipt reprints & void</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionTile} onPress={() => router.push('/(workspace)/customers')}>
-          <Text style={styles.tileEmoji}>👥</Text>
-          <Text style={styles.tileTitle}>Customers</Text>
-          <Text style={styles.tileDesc}>Credit ledger & loyalty</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionTile} onPress={() => router.push('/(workspace)/quotations')}>
-          <Text style={styles.tileEmoji}>📑</Text>
-          <Text style={styles.tileTitle}>Quotations</Text>
-          <Text style={styles.tileDesc}>Draft estimates</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionTile} onPress={() => router.push('/(workspace)/receipts')}>
-          <Text style={styles.tileEmoji}>📜</Text>
-          <Text style={styles.tileTitle}>Receipts</Text>
-          <Text style={styles.tileDesc}>Payment vouchers</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionTile} onPress={() => router.push('/(workspace)/wholesale')}>
-          <Text style={styles.tileEmoji}>🚚</Text>
-          <Text style={styles.tileTitle}>Wholesale & B2B</Text>
-          <Text style={styles.tileDesc}>Sales Orders & DC</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionTile} onPress={() => router.push('/(workspace)/suppliers')}>
-          <Text style={styles.tileEmoji}>🏭</Text>
-          <Text style={styles.tileTitle}>Suppliers & GRN</Text>
-          <Text style={styles.tileDesc}>PO & Stock intake</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionTile} onPress={() => router.push('/(workspace)/reports')}>
-          <Text style={styles.tileEmoji}>📊</Text>
-          <Text style={styles.tileTitle}>Reports & Audits</Text>
-          <Text style={styles.tileDesc}>Analytics & Logs</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionTile} onPress={() => router.push('/(workspace)/team')}>
-          <Text style={styles.tileEmoji}>🛡️</Text>
-          <Text style={styles.tileTitle}>Staff & Roles</Text>
-          <Text style={styles.tileDesc}>Access controls</Text>
-        </TouchableOpacity>
-      </View>
+      <View style={styles.bottomSpacer} />
     </ScrollView>
   );
 }
@@ -437,10 +540,11 @@ export default function MobileDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC'
+    backgroundColor: '#0F172A'
   },
   content: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 40
   },
   statusBanner: {
@@ -452,19 +556,19 @@ const styles = StyleSheet.create({
     marginBottom: 12
   },
   statusOnline: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
     borderWidth: 1,
-    borderColor: '#A7F3D0'
+    borderColor: 'rgba(16, 185, 129, 0.3)'
   },
   statusOffline: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
     borderWidth: 1,
-    borderColor: '#FDE68A'
+    borderColor: 'rgba(245, 158, 11, 0.3)'
   },
   statusPending: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
     borderWidth: 1,
-    borderColor: '#BFDBFE'
+    borderColor: 'rgba(59, 130, 246, 0.3)'
   },
   statusDot: {
     width: 8,
@@ -474,69 +578,66 @@ const styles = StyleSheet.create({
   },
   dotGreen: { backgroundColor: '#10B981' },
   dotAmber: { backgroundColor: '#F59E0B' },
-  dotBlue: { backgroundColor: '#2563EB' },
+  dotBlue: { backgroundColor: '#3B82F6' },
   statusBannerText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#1E293B'
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '500'
   },
   welcomeCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1E293B',
     borderRadius: 12,
     padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 12
+    borderColor: '#334155'
   },
   welcomeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    marginBottom: 10
   },
   welcomeTextGroup: {
     flex: 1
   },
   welcomeSubtitle: {
     fontSize: 12,
-    color: '#64748B'
+    color: '#94A3B8',
+    fontWeight: '500'
   },
   welcomeTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0F172A'
+    fontWeight: '700',
+    color: '#F8FAFC'
   },
   orgTag: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#BFDBFE'
+    borderRadius: 6
   },
   orgTagText: {
     fontSize: 11,
-    fontWeight: 'bold',
-    color: '#1D4ED8'
+    fontWeight: '700',
+    color: '#FFFFFF'
   },
   branchScroll: {
-    marginTop: 12
+    marginTop: 4
   },
   branchChip: {
-    paddingHorizontal: 10,
+    backgroundColor: '#334155',
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#F1F5F9',
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0'
+    borderRadius: 20,
+    marginRight: 8
   },
   branchChipActive: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB'
+    backgroundColor: '#2563EB'
   },
   branchChipText: {
-    fontSize: 11,
-    color: '#475569',
+    fontSize: 12,
+    color: '#CBD5E1',
     fontWeight: '600'
   },
   branchChipTextActive: {
@@ -544,269 +645,264 @@ const styles = StyleSheet.create({
   },
   periodContainer: {
     flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#1E293B',
     borderRadius: 8,
-    padding: 3,
-    marginBottom: 12
+    padding: 4,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#334155'
   },
   periodTab: {
     flex: 1,
-    paddingVertical: 6,
+    paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 6
   },
   periodTabActive: {
-    backgroundColor: '#2563EB'
+    backgroundColor: '#3B82F6'
   },
   periodTabText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#64748B'
+    color: '#94A3B8'
   },
   periodTabTextActive: {
     color: '#FFFFFF'
   },
   loadingBox: {
-    padding: 20,
+    padding: 24,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    backgroundColor: '#1E293B',
     borderRadius: 12,
     marginBottom: 12
   },
   loadingText: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 8
+    color: '#94A3B8',
+    marginTop: 8,
+    fontSize: 12
   },
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
     marginBottom: 12
   },
   metricCard: {
-    flex: 1,
-    minWidth: '47%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 12,
+    width: '48.5%',
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderLeftWidth: 4
+    borderColor: '#334155'
   },
-  borderBlue: { borderLeftColor: '#2563EB' },
-  borderGreen: { borderLeftColor: '#10B981' },
-  borderOrange: { borderLeftColor: '#F97316' },
-  borderPurple: { borderLeftColor: '#8B5CF6' },
+  borderBlue: { borderLeftWidth: 4, borderLeftColor: '#3B82F6' },
+  borderGreen: { borderLeftWidth: 4, borderLeftColor: '#10B981' },
+  borderPurple: { borderLeftWidth: 4, borderLeftColor: '#A855F7' },
+  borderOrange: { borderLeftWidth: 4, borderLeftColor: '#F97316' },
   metricLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-    textTransform: 'uppercase'
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '500',
+    marginBottom: 4
   },
   metricValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#0F172A',
-    marginVertical: 4
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#F8FAFC',
+    marginBottom: 4
   },
   metricMeta: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#64748B'
   },
   metricMetaGreen: {
-    fontSize: 10,
-    color: '#047857',
+    fontSize: 11,
+    color: '#10B981',
     fontWeight: '600'
   },
   metricMetaPurple: {
-    fontSize: 10,
-    color: '#6D28D9',
+    fontSize: 11,
+    color: '#A855F7',
     fontWeight: '600'
   },
+  sectionHeader: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#CBD5E1',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+    marginTop: 4
+  },
+  quickActionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 14
+  },
+  quickActionBtn: {
+    width: '48.5%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  bgBlue: { borderLeftWidth: 4, borderLeftColor: '#3B82F6' },
+  bgAmber: { borderLeftWidth: 4, borderLeftColor: '#F59E0B' },
+  bgEmerald: { borderLeftWidth: 4, borderLeftColor: '#10B981' },
+  bgIndigo: { borderLeftWidth: 4, borderLeftColor: '#6366F1' },
+  quickActionIcon: {
+    fontSize: 22,
+    marginRight: 10
+  },
+  quickActionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#F8FAFC'
+  },
+  quickActionSub: {
+    fontSize: 10,
+    color: '#94A3B8'
+  },
   countersCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1E293B',
     borderRadius: 12,
     padding: 14,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#334155'
+  },
+  cardHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginBottom: 12
   },
   counterGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10
+    justifyContent: 'space-between'
   },
   counterItem: {
-    flex: 1,
-    minWidth: '30%',
-    backgroundColor: '#FAFBFC',
-    padding: 10,
+    width: '31%',
+    backgroundColor: '#0F172A',
     borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#EDF1F5'
+    borderColor: '#334155'
   },
   counterLabel: {
     fontSize: 11,
+    color: '#94A3B8',
     fontWeight: '600',
-    color: '#475569'
+    marginBottom: 4,
+    textAlign: 'center'
   },
   counterValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0F172A',
-    marginVertical: 2
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#38BDF8',
+    marginBottom: 2
   },
   counterSub: {
     fontSize: 9,
-    color: '#64748B'
+    color: '#64748B',
+    textAlign: 'center'
   },
-  tenderCard: {
-    backgroundColor: '#FFFFFF',
+  industryPanelCard: {
+    backgroundColor: '#1E293B',
     borderRadius: 12,
     padding: 14,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 12
+    borderColor: '#3B82F6'
   },
-  cardHeaderTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#0F172A',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5
-  },
-  tenderGrid: {
+  industryPanelHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10
-  },
-  tenderItem: {
-    flex: 1,
     alignItems: 'center',
-    backgroundColor: '#FAFBFC',
-    padding: 8,
-    borderRadius: 6,
-    marginHorizontal: 3,
-    borderWidth: 1,
-    borderColor: '#EDF1F5'
+    marginBottom: 12
   },
-  tenderLabel: {
-    fontSize: 10,
-    color: '#64748B',
-    fontWeight: '600'
+  industryPanelTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F8FAFC'
   },
-  tenderValue: {
+  industryPanelLink: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#0F172A',
-    marginTop: 2
+    fontWeight: '600',
+    color: '#38BDF8'
   },
-  posLaunchButton: {
-    backgroundColor: '#2563EB',
-    borderRadius: 12,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3
-  },
-  posIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12
-  },
-  posIcon: {
-    fontSize: 20
-  },
-  posTextContainer: {
-    flex: 1
-  },
-  posLaunchTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: 'bold'
-  },
-  posLaunchDesc: {
-    color: '#E0E7FF',
-    fontSize: 11
-  },
-  arrowIcon: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold'
-  },
-  industryKpiContainer: {
-    marginBottom: 16
-  },
-  industryKpiCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 8
-  },
-  industryKpiTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#0F172A',
-    marginBottom: 6
-  },
-  industryKpiRow: {
+  industryPanelGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between'
   },
-  industryKpiStat: {
-    fontSize: 11,
-    color: '#64748B'
-  },
-  boldText: {
-    fontWeight: 'bold',
-    color: '#0F172A'
-  },
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#0F172A',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 10
-  },
-  actionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8
-  },
-  actionTile: {
-    width: '48.5%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 12,
+  industryPanelStatBox: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+    marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: '#E2E8F0'
+    borderColor: '#334155'
   },
-  tileEmoji: {
-    fontSize: 20,
+  industryPanelStatVal: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#38BDF8',
+    marginBottom: 2
+  },
+  industryPanelStatLbl: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '600',
+    textAlign: 'center'
+  },
+  tenderCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  tenderGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between'
+  },
+  tenderItem: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+    marginHorizontal: 3,
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  tenderLabel: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
     marginBottom: 4
   },
-  tileTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#0F172A'
+  tenderValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#10B981'
   },
-  tileDesc: {
-    fontSize: 10,
-    color: '#64748B',
-    marginTop: 2
+  bottomSpacer: {
+    height: 40
   }
 });

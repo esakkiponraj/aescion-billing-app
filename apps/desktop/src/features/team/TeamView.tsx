@@ -5,11 +5,20 @@ import { useAuth } from '../../store/authContext';
 import { RolesView } from './RolesView';
 
 export const TeamView: React.FC = () => {
-  const { branches, user: currentUser } = useAuth();
+  const { branches, user: currentUser, organization } = useAuth();
   const [activeTab, setActiveTab] = useState<'MEMBERS' | 'ROLES'>('MEMBERS');
   const [members, setMembers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Filter roles assignable to employees (cannot casually assign OWNER, and exclude non-restaurant roles)
+  const assignableRoles = roles.filter((r) => {
+    if (organization?.businessType === 'RESTAURANT') {
+      const allowed = ['MANAGER', 'ACCOUNTANT', 'CASHIER', 'INVENTORY_STAFF', 'WAITER', 'KITCHEN'];
+      return allowed.includes(r.roleType) && r.roleType !== 'OWNER' && r.name.toUpperCase() !== 'OWNER';
+    }
+    return r.roleType !== 'SUPER_ADMIN' && r.roleType !== 'OWNER';
+  });
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -319,7 +328,7 @@ export const TeamView: React.FC = () => {
                     required
                   >
                     <option value="">-- Select Role --</option>
-                    {roles.map((r) => (
+                    {assignableRoles.map((r) => (
                       <option key={r.id} value={r.id}>
                         {r.name}
                       </option>
@@ -418,7 +427,7 @@ export const TeamView: React.FC = () => {
                     className="w-full aescion-input font-medium"
                     required
                   >
-                    {roles.map((r) => (
+                    {assignableRoles.map((r) => (
                       <option key={r.id} value={r.id}>
                         {r.name}
                       </option>

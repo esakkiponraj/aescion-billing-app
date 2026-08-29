@@ -193,12 +193,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('join_org')
-  handleJoinOrg(client: Socket, payload: { organizationId: string }) {
-    if (payload?.organizationId) {
-      const orgRoom = `org_${payload.organizationId}`;
-      client.join(orgRoom);
-      return { status: 'joined', orgRoom };
-    }
+  handleJoinOrg(client: Socket, payload: { organizationId: string; branchId?: string }) {
+    return this.subscribeClientToRooms(client, payload);
   }
 
   @SubscribeMessage('join_super_admin')
@@ -369,10 +365,43 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.emitPulseUpdate(organizationId, undefined, { trigger: 'TEAM_UPDATED' });
   }
 
+  emitTableUpdate(organizationId: string, branchId?: string, data?: any) {
+    if (!this.server || !organizationId) return;
+    if (branchId && branchId !== 'ALL') {
+      const branchRoom = `org_${organizationId}_branch_${branchId}`;
+      this.server.to(branchRoom).emit('table_updated', data);
+    } else {
+      const orgRoom = `org_${organizationId}`;
+      this.server.to(orgRoom).emit('table_updated', data);
+    }
+    this.server.to('platform_super_admin').emit('platform_table_updated', { organizationId, branchId, data });
+    this.server.to('platform_super_admin').emit('table_updated', { organizationId, branchId, data });
+    this.emitPulseUpdate(organizationId, branchId, { trigger: 'TABLE_UPDATED' });
+  }
+
   emitKOTUpdate(organizationId: string, branchId: string, data: any) {
     if (!this.server || !organizationId) return;
-    const branchRoom = `org_${organizationId}_branch_${branchId}`;
-    this.server.to(branchRoom).emit('kot_updated', data);
+    if (branchId && branchId !== 'ALL') {
+      const branchRoom = `org_${organizationId}_branch_${branchId}`;
+      this.server.to(branchRoom).emit('kot_updated', data);
+    } else {
+      const orgRoom = `org_${organizationId}`;
+      this.server.to(orgRoom).emit('kot_updated', data);
+    }
+    this.server.to('platform_super_admin').emit('platform_kot_updated', { organizationId, branchId, data });
+    this.server.to('platform_super_admin').emit('kot_updated', { organizationId, branchId, data });
+    this.emitPulseUpdate(organizationId, branchId, { trigger: 'KOT_UPDATED' });
+  }
+
+  emitReservationUpdate(organizationId: string, branchId?: string, data?: any) {
+    if (!this.server || !organizationId) return;
+    const orgRoom = `org_${organizationId}`;
+    this.server.to(orgRoom).emit('reservation_updated', data);
+    if (branchId && branchId !== 'ALL') {
+      const branchRoom = `org_${organizationId}_branch_${branchId}`;
+      this.server.to(branchRoom).emit('reservation_updated', data);
+    }
+    this.server.to('platform_super_admin').emit('platform_reservation_updated', { organizationId, branchId, data });
   }
 
   emitJobCardUpdate(organizationId: string, branchId: string, data: any) {

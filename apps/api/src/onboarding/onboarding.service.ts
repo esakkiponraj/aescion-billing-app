@@ -3,7 +3,7 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../common/prisma.service';
 import { OnboardingInput } from '@aescion/validation';
 import { BusinessType, RoleType } from '@aescion/shared-types';
-import { DEFAULT_ROLE_PERMISSIONS } from '@aescion/capability-config';
+import { getDomainRoleTemplates } from '@aescion/capability-config';
 import { AuthService } from '../auth/auth.service';
 import { AuditService } from '../common/services/audit.service';
 
@@ -30,19 +30,20 @@ export class OnboardingService {
       throw new ConflictException('A user with this email or username already exists.');
     }
 
+    // 2. Hash owner password
     const passwordHash = await bcrypt.hash(dto.owner.password, 10);
 
-    // 2. Perform atomic creation in transaction
+    // 3. Perform atomic creation within transaction
     const result = await this.prisma.$transaction(async (tx) => {
       // Step 1: Create Owner User
       const ownerUser = await tx.user.create({
         data: {
+          firstName: dto.owner.firstName,
+          lastName: dto.owner.lastName || '',
           email: dto.owner.email.toLowerCase(),
           username: dto.owner.username.toLowerCase(),
-          passwordHash,
-          firstName: dto.owner.firstName,
-          lastName: dto.owner.lastName,
           mobileNumber: dto.owner.mobileNumber,
+          passwordHash,
           isActive: true
         }
       });
@@ -54,11 +55,11 @@ export class OnboardingService {
           legalName: dto.business.legalName || dto.business.name,
           businessType: dto.businessType,
           phone: dto.business.phone,
-          email: dto.business.email || dto.owner.email,
-          address: dto.business.address,
-          city: dto.business.city,
-          state: dto.business.state,
-          pinCode: dto.business.pinCode,
+          email: (dto.business.email || dto.owner.email).toLowerCase(),
+          address: dto.business.address || `${dto.business.city || 'Main'} Outlet`,
+          city: dto.business.city || 'Bangalore',
+          state: dto.business.state || 'Karnataka',
+          pinCode: dto.business.pinCode || '560001',
           country: dto.business.country || 'India',
           currency: dto.business.currency || 'INR',
           timezone: dto.business.timezone || 'Asia/Kolkata',
@@ -67,19 +68,21 @@ export class OnboardingService {
         }
       });
 
-      // Step 3: Create Default System Roles for the Organization
+      // Step 3: Create Default System Roles for the Organization matching its Business Domain
       const createdRoles: Record<string, any> = {};
-      for (const [roleKey, permissions] of Object.entries(DEFAULT_ROLE_PERMISSIONS)) {
+      const domainTemplates = getDomainRoleTemplates(dto.businessType);
+
+      for (const template of domainTemplates) {
         const role = await tx.role.create({
           data: {
             organizationId: organization.id,
-            name: roleKey.replace('_', ' '),
-            roleType: roleKey,
-            permissions: permissions as string[],
+            name: template.name,
+            roleType: template.roleType,
+            permissions: template.defaultPermissions as string[],
             isSystem: true
           }
         });
-        createdRoles[roleKey] = role;
+        createdRoles[template.roleType] = role;
       }
 
       // Step 4: Create Branches

@@ -71,13 +71,14 @@ model Organization {
   syncMutations     SyncMutation[]
 
   // Industry Extensions
-  restaurantTables  RestaurantTable[]
-  kots              KitchenOrderTicket[]
-  customerAssets    CustomerAsset[]
-  serviceJobCards   ServiceJobCard[]
-  medicines         MedicineMaster[]
-  medicineBatches   MedicineBatch[]
-  wholesaleOrders   WholesaleSalesOrder[]
+  restaurantTables       RestaurantTable[]
+  kots                   KitchenOrderTicket[]
+  restaurantReservations RestaurantReservation[]
+  customerAssets         CustomerAsset[]
+  serviceJobCards        ServiceJobCard[]
+  medicines              MedicineMaster[]
+  medicineBatches        MedicineBatch[]
+  wholesaleOrders        WholesaleSalesOrder[]
 
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -108,11 +109,12 @@ model Branch {
   inventoryBalances InventoryBalance[]
   purchaseOrders    PurchaseOrder[]
   cashierShifts     CashierShift[]
-  restaurantTables  RestaurantTable[]
-  kots              KitchenOrderTicket[]
-  serviceJobCards   ServiceJobCard[]
-  medicineBatches   MedicineBatch[]
-  wholesaleOrders   WholesaleSalesOrder[]
+  restaurantTables       RestaurantTable[]
+  kots                   KitchenOrderTicket[]
+  restaurantReservations RestaurantReservation[]
+  serviceJobCards        ServiceJobCard[]
+  medicineBatches        MedicineBatch[]
+  wholesaleOrders        WholesaleSalesOrder[]
 
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -641,6 +643,27 @@ model KitchenOrderTicket {
   updatedAt      DateTime     @updatedAt
 
   @@unique([organizationId, kotNumber])
+  @@index([organizationId, branchId, status])
+}
+
+model RestaurantReservation {
+  id              String       @id @default(uuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId        String
+  branch          Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  customerName    String
+  customerPhone   String
+  guestCount      Int          @default(2)
+  reservationDate DateTime
+  reservationTime String
+  tableNumber     String?
+  section         String?
+  notes           String?
+  status          String       @default("CONFIRMED") // PENDING, CONFIRMED, SEATED, COMPLETED, CANCELLED, NO_SHOW
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
   @@index([organizationId, branchId, status])
 }
 

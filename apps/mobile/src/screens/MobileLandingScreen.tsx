@@ -32,11 +32,11 @@ export const MobileLandingScreen: React.FC = () => {
   const router = useRouter();
 
   const handleGetStarted = () => {
-    router.push('/register');
+    router.push('/register' as any);
   };
 
   const handleSignIn = () => {
-    router.push('/login');
+    router.push('/login' as any);
   };
 
   return (

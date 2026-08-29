@@ -118,6 +118,7 @@ export default function WorkspaceLayout() {
         />
 
         {/* Hidden Screens accessible via Sidebar Drawer */}
+        <Tabs.Screen name="branches" options={{ href: null, title: 'Branch Outlets' }} />
         <Tabs.Screen name="customers" options={{ href: null, title: 'Customers & Credit' }} />
         <Tabs.Screen name="quotations" options={{ href: null, title: 'Quotations & Estimates' }} />
         <Tabs.Screen name="receipts" options={{ href: null, title: 'Payment Receipts' }} />
@@ -142,7 +143,7 @@ export default function WorkspaceLayout() {
 const styles = StyleSheet.create({
   menuButton: {
     marginLeft: 12,
-    marginRight: 4,
+    marginRight: 6,
     padding: 6,
     borderRadius: 8,
     backgroundColor: '#F1F5F9',
@@ -156,12 +157,13 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
+    flex: 1
   },
   companyBadge: {
     width: 32,
     height: 32,
-    borderRadius: 10,
+    borderRadius: 8,
     backgroundColor: '#2563EB',
     justifyContent: 'center',
     alignItems: 'center',
@@ -173,7 +175,7 @@ const styles = StyleSheet.create({
     fontSize: 13
   },
   headerInfo: {
-    maxWidth: 160
+    flexShrink: 1
   },
   companyName: {
     fontSize: 13,

@@ -18,15 +18,9 @@ out/
 # Environment variables & secrets
 .env
 .env.local
-.env.development
 .env.production
-.env.test
 *.pem
 *.key
-
-# Keep example environment files
-!.env.example
-!**/.env.example
 
 # Database
 *.sqlite
@@ -37,12 +31,6 @@ out/
 # Electron builds
 release/
 dist-electron/
-
-# Runtime uploaded files
-apps/api/uploads/
-
-# Expo generated native Android project
-apps/mobile/android/
 
 # OS files
 .DS_Store

@@ -65,14 +65,16 @@ export function getNavigationForContext(
       break;
   }
 
-  const operationsItems: NavItem[] = [
-    {
+  const operationsItems: NavItem[] = [];
+
+  if (roleType !== RoleType.KITCHEN) {
+    operationsItems.push({
       id: 'dashboard',
-      label: pulseLabel,
+      label: roleType === RoleType.WAITER ? 'My Tables / Pulse' : pulseLabel,
       path: '/dashboard',
       icon: 'LayoutDashboard'
-    }
-  ];
+    });
+  }
 
   // Industry-specific operation links
   if (businessType === BusinessType.RESTAURANT) {

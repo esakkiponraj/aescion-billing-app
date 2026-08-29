@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, ConflictException, 
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../common/prisma.service';
 import { RoleType } from '@aescion/shared-types';
+import { validateDomainPermissions } from '@aescion/capability-config';
 import { AuditService } from '../common/services/audit.service';
 import { EventsGateway } from '../realtime/events.gateway';
 
@@ -26,11 +27,46 @@ export class TeamService {
   }
 
   async getRoles(organizationId: string) {
-    return this.prisma.role.findMany({
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { businessType: true }
+    });
+
+    const roles = await this.prisma.role.findMany({
       where: {
         OR: [{ organizationId }, { organizationId: null, isSystem: true }]
       },
       orderBy: { name: 'asc' }
+    });
+
+    const businessType = org?.businessType || 'RETAIL';
+
+    if (businessType === 'RESTAURANT') {
+      const allowedRoleTypes = ['OWNER', 'MANAGER', 'ACCOUNTANT', 'CASHIER', 'INVENTORY_STAFF', 'WAITER', 'KITCHEN', 'CUSTOM'];
+      const excludedNames = ['SUPER_ADMIN', 'SUPER ADMIN', 'TECHNICIAN', 'CAPTAIN'];
+      return roles.filter((r) => {
+        const typeMatch = allowedRoleTypes.includes(r.roleType);
+        const notExcluded = !excludedNames.includes(r.name.toUpperCase()) && !excludedNames.includes(r.roleType.toUpperCase());
+        return (typeMatch && notExcluded) || (r.organizationId === organizationId);
+      });
+    }
+
+    if (businessType === 'SERVICE') {
+      const allowedRoleTypes = ['OWNER', 'MANAGER', 'ACCOUNTANT', 'CASHIER', 'INVENTORY_STAFF', 'TECHNICIAN', 'CUSTOM'];
+      const excludedNames = ['SUPER_ADMIN', 'SUPER ADMIN', 'WAITER', 'KITCHEN'];
+      return roles.filter((r) => {
+        const typeMatch = allowedRoleTypes.includes(r.roleType);
+        const notExcluded = !excludedNames.includes(r.name.toUpperCase()) && !excludedNames.includes(r.roleType.toUpperCase());
+        return (typeMatch && notExcluded) || (r.organizationId === organizationId);
+      });
+    }
+
+    // For non-restaurant industries, exclude Restaurant-specific roles (WAITER, KITCHEN), Service (TECHNICIAN), and platform SUPER_ADMIN
+    return roles.filter((r) => {
+      const isRestaurantRole = r.roleType === 'WAITER' || r.roleType === 'KITCHEN' || r.name.toUpperCase() === 'WAITER' || r.name.toUpperCase() === 'KITCHEN';
+      const isServiceRole = r.roleType === 'TECHNICIAN' || r.name.toUpperCase() === 'TECHNICIAN';
+      const isSuperAdmin = r.roleType === 'SUPER_ADMIN' || r.name.toUpperCase() === 'SUPER ADMIN';
+      return (!isRestaurantRole && !isServiceRole && !isSuperAdmin) || (r.organizationId === organizationId);
     });
   }
 
@@ -42,6 +78,7 @@ export class TeamService {
     password: string;
     roleId?: string;
     roleName?: string;
+    roleType?: string;
     branchId?: string;
   }) {
     const userEmail = data.email ? data.email.toLowerCase() : `${data.username.toLowerCase()}@aescion.local`;
@@ -59,11 +96,15 @@ export class TeamService {
     }
 
     let targetRoleId = data.roleId;
-    if (!targetRoleId && data.roleName) {
+    const searchRole = data.roleType || data.roleName;
+    if (!targetRoleId && searchRole) {
       const foundRole = await this.prisma.role.findFirst({
         where: {
-          name: { equals: data.roleName, mode: 'insensitive' },
-          OR: [{ organizationId }, { organizationId: null, isSystem: true }]
+          organizationId,
+          OR: [
+            { roleType: { equals: searchRole, mode: 'insensitive' } },
+            { name: { equals: searchRole, mode: 'insensitive' } }
+          ]
         }
       });
       if (foundRole) targetRoleId = foundRole.id;
@@ -71,9 +112,26 @@ export class TeamService {
 
     if (!targetRoleId) {
       const defaultRole = await this.prisma.role.findFirst({
-        where: { name: 'CASHIER', isSystem: true }
+        where: {
+          organizationId,
+          roleType: 'CASHIER'
+        }
       });
-      targetRoleId = defaultRole?.id || '';
+      targetRoleId = defaultRole?.id;
+    }
+
+    if (!targetRoleId) {
+      // Fallback: create role for this org if none exists
+      const newRole = await this.prisma.role.create({
+        data: {
+          organizationId,
+          name: data.roleName || 'Cashier',
+          roleType: 'CASHIER',
+          permissions: ['pos:access', 'pos:create_bill', 'invoice:view', 'invoice:create', 'payment:collect', 'restaurant:tables', 'restaurant:kot'],
+          isSystem: false
+        }
+      });
+      targetRoleId = newRole.id;
     }
 
     const passwordHash = await bcrypt.hash(data.password, 10);
@@ -178,6 +236,17 @@ export class TeamService {
   }
 
   async createCustomRole(organizationId: string, userId: string, userName: string, data: { name: string; permissions: string[] }) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { businessType: true }
+    });
+    if (!org) throw new NotFoundException('Organization not found');
+
+    const validation = validateDomainPermissions(org.businessType, data.permissions || []);
+    if (!validation.valid) {
+      throw new BadRequestException(`Cannot assign permissions outside ${org.businessType} domain: ${validation.invalidPermissions.join(', ')}`);
+    }
+
     const role = await this.prisma.role.create({
       data: {
         organizationId,
@@ -205,12 +274,23 @@ export class TeamService {
     const role = await this.prisma.role.findUnique({ where: { id: roleId } });
     if (!role) throw new NotFoundException('Role not found');
 
-    if (role.isSystem && role.roleType === RoleType.OWNER) {
+    if (role.roleType === RoleType.OWNER) {
       throw new ForbiddenException('The core Owner system role permissions cannot be altered.');
     }
 
-    if (!role.isSystem && role.organizationId !== organizationId) {
+    if (role.organizationId && role.organizationId !== organizationId) {
       throw new ForbiddenException('Cannot edit roles belonging to another organization.');
+    }
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { businessType: true }
+    });
+    if (!org) throw new NotFoundException('Organization not found');
+
+    const validation = validateDomainPermissions(org.businessType, data.permissions || []);
+    if (!validation.valid) {
+      throw new BadRequestException(`Cannot assign permissions outside ${org.businessType} domain: ${validation.invalidPermissions.join(', ')}`);
     }
 
     const updated = await this.prisma.role.update({

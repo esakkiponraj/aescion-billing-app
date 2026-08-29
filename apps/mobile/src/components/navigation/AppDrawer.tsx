@@ -48,7 +48,6 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({ visible, onClose }) => {
     }[] = [];
 
     if (businessType === 'WHOLESALE') {
-      // 1. Wholesale & Distribution Group
       groups.push({
         title: 'WHOLESALE & DISTRIBUTION',
         items: [
@@ -59,7 +58,6 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({ visible, onClose }) => {
         ]
       });
 
-      // 2. Billing & Documents Group
       groups.push({
         title: 'BILLING & DOCUMENTS',
         items: [
@@ -69,7 +67,6 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({ visible, onClose }) => {
         ]
       });
 
-      // 3. Management Group
       const managementItems: { label: string; icon: string; path: string; highlightPaths: string[] }[] = [
         { label: 'Customers & Credit', icon: '👥', path: '/(workspace)/customers', highlightPaths: ['/customers'] },
         { label: 'Suppliers & Purchases', icon: '🏭', path: '/(workspace)/suppliers', highlightPaths: ['/suppliers'] }
@@ -77,6 +74,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({ visible, onClose }) => {
 
       if (isOwner || isManager) {
         managementItems.push(
+          { label: 'Branch Outlets', icon: '🏢', path: '/(workspace)/branches', highlightPaths: ['/branches'] },
           { label: 'Team & Access', icon: '🛡️', path: '/(workspace)/team', highlightPaths: ['/team'] },
           { label: 'Reports & Audits', icon: '📈', path: '/(workspace)/reports', highlightPaths: ['/reports'] },
           { label: 'Settings & Tax', icon: '⚙️', path: '/(workspace)/settings', highlightPaths: ['/settings'] }
@@ -88,23 +86,136 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({ visible, onClose }) => {
         items: managementItems
       });
     } else if (businessType === 'RESTAURANT') {
+      if (roleType === RoleType.KITCHEN) {
+        // Kitchen Minimal Menu
+        groups.push({
+          title: 'KITCHEN DISPLAY (KDS)',
+          items: [
+            { label: 'Kitchen KOT Screen', icon: '👨‍🍳', path: '/(workspace)/restaurant', highlightPaths: ['/restaurant'] }
+          ]
+        });
+      } else if (roleType === RoleType.WAITER) {
+        // Waiter Operational Menu
+        groups.push({
+          title: 'RESTAURANT OPERATIONS',
+          items: [
+            { label: 'Waiter Pulse', icon: '📊', path: '/(workspace)/dashboard', highlightPaths: ['/dashboard'] },
+            { label: 'Tables & Dining', icon: '🍽️', path: '/(workspace)/restaurant', highlightPaths: ['/restaurant'] },
+            { label: 'Menu & Recipes', icon: '🥘', path: '/(workspace)/products', highlightPaths: ['/products'] }
+          ]
+        });
+      } else if (roleType === RoleType.ACCOUNTANT) {
+        // Accountant Financial Menu
+        groups.push({
+          title: 'FINANCE OPERATIONS',
+          items: [
+            { label: 'Finance Pulse', icon: '📊', path: '/(workspace)/dashboard', highlightPaths: ['/dashboard'] },
+            { label: 'Menu Catalog', icon: '🥘', path: '/(workspace)/products', highlightPaths: ['/products'] }
+          ]
+        });
+        groups.push({
+          title: 'BILLING & GUESTS',
+          items: [
+            { label: 'Bills & Invoices', icon: '🧾', path: '/(workspace)/billing', highlightPaths: ['/billing'] },
+            { label: 'Payments & Receipts', icon: '💳', path: '/(workspace)/receipts', highlightPaths: ['/receipts'] },
+            { label: 'Quotations', icon: '📑', path: '/(workspace)/quotations', highlightPaths: ['/quotations'] }
+          ]
+        });
+        groups.push({
+          title: 'MANAGEMENT',
+          items: [
+            { label: 'Guest Roster', icon: '👥', path: '/(workspace)/customers', highlightPaths: ['/customers'] },
+            { label: 'Suppliers & Purchases', icon: '🏭', path: '/(workspace)/suppliers', highlightPaths: ['/suppliers'] },
+            { label: 'Reports & Audits', icon: '📈', path: '/(workspace)/reports', highlightPaths: ['/reports'] }
+          ]
+        });
+      } else if (roleType === RoleType.INVENTORY_STAFF) {
+        // Inventory Staff Menu
+        groups.push({
+          title: 'INVENTORY OPERATIONS',
+          items: [
+            { label: 'Inventory Pulse', icon: '📊', path: '/(workspace)/dashboard', highlightPaths: ['/dashboard'] },
+            { label: 'Menu & Stock', icon: '🥘', path: '/(workspace)/products', highlightPaths: ['/products'] }
+          ]
+        });
+        groups.push({
+          title: 'MANAGEMENT',
+          items: [
+            { label: 'Suppliers & Purchases', icon: '🏭', path: '/(workspace)/suppliers', highlightPaths: ['/suppliers'] },
+            { label: 'Stock Reports', icon: '📈', path: '/(workspace)/reports', highlightPaths: ['/reports'] }
+          ]
+        });
+      } else if (roleType === RoleType.CASHIER) {
+        // Cashier Operational Menu
+        groups.push({
+          title: 'RESTAURANT OPERATIONS',
+          items: [
+            { label: 'Cashier Pulse', icon: '📊', path: '/(workspace)/dashboard', highlightPaths: ['/dashboard'] },
+            { label: 'Tables & Dining', icon: '🍽️', path: '/(workspace)/restaurant', highlightPaths: ['/restaurant'] },
+            { label: 'Fast Billing POS', icon: '⚡', path: '/(workspace)/pos', highlightPaths: ['/pos'] },
+            { label: 'Menu & Recipes', icon: '🥘', path: '/(workspace)/products', highlightPaths: ['/products'] }
+          ]
+        });
+        groups.push({
+          title: 'BILLING & GUESTS',
+          items: [
+            { label: 'Bills & Invoices', icon: '🧾', path: '/(workspace)/billing', highlightPaths: ['/billing'] },
+            { label: 'Payments & Receipts', icon: '💳', path: '/(workspace)/receipts', highlightPaths: ['/receipts'] },
+            { label: 'Guest Roster', icon: '👥', path: '/(workspace)/customers', highlightPaths: ['/customers'] }
+          ]
+        });
+      } else {
+        // Owner and Manager
+        const isOwnerRole = roleType === RoleType.OWNER || isSuperAdmin;
+        groups.push({
+          title: 'RESTAURANT / CAFE OPERATIONS',
+          items: [
+            { label: 'Restaurant Pulse', icon: '📊', path: '/(workspace)/dashboard', highlightPaths: ['/dashboard'] },
+            { label: 'Floor & Tables', icon: '🍽️', path: '/(workspace)/restaurant', highlightPaths: ['/restaurant'] },
+            { label: 'Kitchen KOT Screen', icon: '👨‍🍳', path: '/(workspace)/restaurant', highlightPaths: ['/restaurant'] },
+            { label: 'Fast Billing (POS)', icon: '⚡', path: '/(workspace)/pos', highlightPaths: ['/pos'] }
+          ]
+        });
+        groups.push({
+          title: 'BILLING & DOCUMENTS',
+          items: [
+            { label: 'Invoices & Bills', icon: '🧾', path: '/(workspace)/billing', highlightPaths: ['/billing'] },
+            { label: 'Payments & Receipts', icon: '💳', path: '/(workspace)/receipts', highlightPaths: ['/receipts'] }
+          ]
+        });
+        const mgmtItems = [
+          { label: 'Customers & Credit', icon: '👥', path: '/(workspace)/customers', highlightPaths: ['/customers'] },
+          { label: 'Suppliers & Purchases', icon: '🏭', path: '/(workspace)/suppliers', highlightPaths: ['/suppliers'] },
+          { label: 'Team & Access', icon: '🛡️', path: '/(workspace)/team', highlightPaths: ['/team'] },
+          { label: 'Outlets & Branches', icon: '🏢', path: '/(workspace)/branches', highlightPaths: ['/branches'] },
+          { label: 'Reports & Audits', icon: '📈', path: '/(workspace)/reports', highlightPaths: ['/reports'] }
+        ];
+        if (isOwnerRole) {
+          mgmtItems.push({ label: 'Settings & Tax', icon: '⚙️', path: '/(workspace)/settings', highlightPaths: ['/settings'] });
+        }
+        groups.push({
+          title: 'MANAGEMENT',
+          items: mgmtItems
+        });
+      }
+    } else if (businessType === 'SERVICE') {
       groups.push({
-        title: 'RESTAURANT OPERATIONS',
+        title: 'SERVICE CENTER OPERATIONS',
         items: [
-          { label: 'Restaurant Pulse', icon: '📊', path: '/(workspace)/dashboard', highlightPaths: ['/dashboard'] },
-          { label: 'Tables & Dining', icon: '🍽️', path: '/(workspace)/restaurant', highlightPaths: ['/restaurant'] },
-          { label: 'Kitchen KOT', icon: '👨‍🍳', path: '/(workspace)/restaurant', highlightPaths: ['/restaurant'] },
-          { label: 'Fast POS & Dine-in', icon: '⚡', path: '/(workspace)/pos', highlightPaths: ['/pos'] },
-          { label: 'Menu & Recipes', icon: '🥘', path: '/(workspace)/products', highlightPaths: ['/products'] }
+          { label: 'Service Pulse', icon: '📊', path: '/(workspace)/dashboard', highlightPaths: ['/dashboard'] },
+          { label: 'Job Cards & Repairs', icon: '🔧', path: '/(workspace)/service', highlightPaths: ['/service'] },
+          { label: 'Quick POS Checkout', icon: '⚡', path: '/(workspace)/pos', highlightPaths: ['/pos'] },
+          { label: 'Spares & Labor Catalog', icon: '📦', path: '/(workspace)/products', highlightPaths: ['/products'] }
         ]
       });
 
       groups.push({
-        title: 'BILLING & GUESTS',
+        title: 'BILLING & CLIENTS',
         items: [
-          { label: 'Bills & Invoices', icon: '🧾', path: '/(workspace)/billing', highlightPaths: ['/billing'] },
-          { label: 'Payments & Receipts', icon: '💳', path: '/(workspace)/receipts', highlightPaths: ['/receipts'] },
-          { label: 'Guest Roster', icon: '👥', path: '/(workspace)/customers', highlightPaths: ['/customers'] }
+          { label: 'Repair Invoices', icon: '🧾', path: '/(workspace)/billing', highlightPaths: ['/billing'] },
+          { label: 'Estimates / Quotes', icon: '📑', path: '/(workspace)/quotations', highlightPaths: ['/quotations'] },
+          { label: 'Payment Receipts', icon: '💳', path: '/(workspace)/receipts', highlightPaths: ['/receipts'] },
+          { label: 'Clients & Devices', icon: '👥', path: '/(workspace)/customers', highlightPaths: ['/customers'] }
         ]
       });
 
@@ -112,7 +223,8 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({ visible, onClose }) => {
         groups.push({
           title: 'MANAGEMENT',
           items: [
-            { label: 'Team & Staff', icon: '🛡️', path: '/(workspace)/team', highlightPaths: ['/team'] },
+            { label: 'Branch Outlets', icon: '🏢', path: '/(workspace)/branches', highlightPaths: ['/branches'] },
+            { label: 'Technicians & Team', icon: '🛡️', path: '/(workspace)/team', highlightPaths: ['/team'] },
             { label: 'Reports & Audits', icon: '📈', path: '/(workspace)/reports', highlightPaths: ['/reports'] },
             { label: 'Settings & Tax', icon: '⚙️', path: '/(workspace)/settings', highlightPaths: ['/settings'] }
           ]
@@ -134,6 +246,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({ visible, onClose }) => {
         items: [
           { label: 'Prescription Invoices', icon: '🧾', path: '/(workspace)/billing', highlightPaths: ['/billing'] },
           { label: 'Payments & Receipts', icon: '💳', path: '/(workspace)/receipts', highlightPaths: ['/receipts'] },
+          { label: 'Quotations', icon: '📑', path: '/(workspace)/quotations', highlightPaths: ['/quotations'] },
           { label: 'Patients & Doctors', icon: '👥', path: '/(workspace)/customers', highlightPaths: ['/customers'] },
           { label: 'Pharma Suppliers', icon: '🏭', path: '/(workspace)/suppliers', highlightPaths: ['/suppliers'] }
         ]
@@ -143,6 +256,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({ visible, onClose }) => {
         groups.push({
           title: 'MANAGEMENT',
           items: [
+            { label: 'Branch Outlets', icon: '🏢', path: '/(workspace)/branches', highlightPaths: ['/branches'] },
             { label: 'Team & Staff', icon: '🛡️', path: '/(workspace)/team', highlightPaths: ['/team'] },
             { label: 'Reports & Audits', icon: '📈', path: '/(workspace)/reports', highlightPaths: ['/reports'] },
             { label: 'Settings & Tax', icon: '⚙️', path: '/(workspace)/settings', highlightPaths: ['/settings'] }
@@ -150,7 +264,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({ visible, onClose }) => {
         });
       }
     } else {
-      // Default: Retail / Supermarket / General
+      // Retail / Supermarket / General
       groups.push({
         title: 'STORE & POS OPERATIONS',
         items: [
@@ -177,6 +291,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({ visible, onClose }) => {
 
       if (isOwner || isManager) {
         mgmt.push(
+          { label: 'Branch Outlets', icon: '🏢', path: '/(workspace)/branches', highlightPaths: ['/branches'] },
           { label: 'Team & Staff', icon: '🛡️', path: '/(workspace)/team', highlightPaths: ['/team'] },
           { label: 'Reports & Audits', icon: '📈', path: '/(workspace)/reports', highlightPaths: ['/reports'] },
           { label: 'Settings & Tax', icon: '⚙️', path: '/(workspace)/settings', highlightPaths: ['/settings'] }

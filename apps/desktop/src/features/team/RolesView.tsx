@@ -1,105 +1,138 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Plus, Edit2, Lock, CheckCircle2, X, RefreshCw, Layers } from 'lucide-react';
+import { ShieldCheck, Plus, Edit2, Lock, CheckCircle2, X, RefreshCw, Layers, Search } from 'lucide-react';
 import { ApiClient } from '../../services/api';
 import { useAuth } from '../../store/authContext';
-import { Permission } from '@aescion/capability-config';
+import {
+  Permission,
+  getDomainAllowedPermissions,
+  getDomainRoleTemplates,
+  DomainRoleTemplate
+} from '@aescion/capability-config';
+import { BusinessType } from '@aescion/shared-types';
 
-// Grouped Permissions Hierarchy
-export const PERMISSION_GROUPS: { groupName: string; permissions: { id: Permission; label: string }[] }[] = [
-  {
-    groupName: 'Dashboard & Reports',
-    permissions: [
-      { id: Permission.REPORT_SALES, label: 'View Sales Analytics & Realtime Pulse' },
-      { id: Permission.REPORT_FINANCIAL, label: 'View Financial Balance Reports' },
-      { id: Permission.REPORT_INVENTORY, label: 'View Stock & Inventory Reports' },
-      { id: Permission.REPORT_TAX_GST, label: 'View GST Tax Ledger Reports' }
-    ]
-  },
-  {
-    groupName: 'Fast POS & Cashier Shifts',
-    permissions: [
-      { id: Permission.POS_ACCESS, label: 'Access Fast Billing POS Terminal' },
-      { id: Permission.POS_CREATE_BILL, label: 'Generate & Print POS Counter Bills' },
-      { id: Permission.POS_APPLY_DISCOUNT, label: 'Apply Manual Discounts at Checkout' },
-      { id: Permission.POS_HOLD_RECALL, label: 'Hold and Recall Active POS Orders' },
-      { id: Permission.POS_OVERRIDE_PRICE, label: 'Manual Unit Price Override' },
-      { id: Permission.SHIFT_OPEN, label: 'Open & Manage Cashier Shift' },
-      { id: Permission.SHIFT_CLOSE, label: 'Close Shift & Reconcile Drawer Cash' },
-      { id: Permission.SHIFT_VIEW_ALL, label: 'View All Branch Shifts' }
-    ]
-  },
-  {
-    groupName: 'Products & Inventory',
-    permissions: [
-      { id: Permission.PRODUCT_VIEW, label: 'View Products & Price Lists' },
-      { id: Permission.PRODUCT_CREATE, label: 'Create New Products' },
-      { id: Permission.PRODUCT_UPDATE, label: 'Edit Product Pricing & Details' },
-      { id: Permission.PRODUCT_DELETE, label: 'Delete Products' },
-      { id: Permission.STOCK_VIEW, label: 'View Stock Balances & Ledger' },
-      { id: Permission.STOCK_ADJUST, label: 'Perform Manual Stock Adjustments' },
-      { id: Permission.STOCK_TRANSFER, label: 'Inter-Branch Stock Transfers' }
-    ]
-  },
-  {
-    groupName: 'Quotations & Invoices',
-    permissions: [
-      { id: Permission.QUOTATION_VIEW, label: 'View Quotations & Estimates' },
-      { id: Permission.QUOTATION_CREATE, label: 'Create & Edit Quotations' },
-      { id: Permission.QUOTATION_CONVERT, label: 'Convert Quotations to Invoices' },
-      { id: Permission.INVOICE_VIEW, label: 'View Invoices & Sales Bills' },
-      { id: Permission.INVOICE_CREATE, label: 'Generate Official Invoices' },
-      { id: Permission.INVOICE_CANCEL, label: 'Void / Cancel Finalized Invoices' }
-    ]
-  },
-  {
-    groupName: 'Payments & Receipts',
-    permissions: [
-      { id: Permission.PAYMENT_COLLECT, label: 'Collect Cash, UPI & Card Payments' },
-      { id: Permission.RECEIPT_REPRINT, label: 'Reprint Thermal Payment Receipts' }
-    ]
-  },
-  {
-    groupName: 'Customers & Suppliers',
-    permissions: [
-      { id: Permission.CUSTOMER_VIEW, label: 'View Customers Directory' },
-      { id: Permission.CUSTOMER_CREATE, label: 'Add & Register Customers' },
-      { id: Permission.CUSTOMER_UPDATE, label: 'Edit Customer Master Records' },
-      { id: Permission.CUSTOMER_CREDIT_MANAGE, label: 'Manage Customer Credit Limits' },
-      { id: Permission.SUPPLIER_VIEW, label: 'View Suppliers & Purchase Orders' },
-      { id: Permission.SUPPLIER_CREATE, label: 'Create Vendors Master Records' },
-      { id: Permission.PO_CREATE, label: 'Issue Purchase Orders' },
-      { id: Permission.GRN_CREATE, label: 'Receive Goods (GRN Stock Intake)' }
-    ]
-  },
-  {
-    groupName: 'Team, Outlets & Settings',
-    permissions: [
-      { id: Permission.USER_VIEW, label: 'View Team Members' },
-      { id: Permission.USER_CREATE, label: 'Create & Onboard Staff Accounts' },
-      { id: Permission.USER_UPDATE, label: 'Edit Staff Roles & Outlets' },
-      { id: Permission.ROLE_VIEW, label: 'View Roles & Permission Matrix' },
-      { id: Permission.ROLE_CREATE, label: 'Create Custom Roles' },
-      { id: Permission.ROLE_UPDATE, label: 'Modify Role Permissions' },
-      { id: Permission.BRANCH_VIEW, label: 'View Stores & Outlets' },
-      { id: Permission.BRANCH_CREATE, label: 'Create New Branch Outlets' },
-      { id: Permission.BRANCH_UPDATE, label: 'Edit Store Outlets & Registers' },
-      { id: Permission.ORG_VIEW, label: 'View Organization Profile' },
-      { id: Permission.ORG_UPDATE, label: 'Modify Business Settings & GST Configuration' }
-    ]
-  },
-  {
-    groupName: 'Industry Modules',
-    permissions: [
-      { id: Permission.RESTAURANT_TABLES, label: 'Manage Restaurant Tables & Dining Floor' },
-      { id: Permission.RESTAURANT_KOT, label: 'Dispatch Orders to Kitchen (KOT)' },
-      { id: Permission.RESTAURANT_KITCHEN, label: 'Kitchen KOT Display Screen' },
-      { id: Permission.SERVICE_JOB_CREATE, label: 'Create Service Repair Job Cards' },
-      { id: Permission.SERVICE_JOB_UPDATE, label: 'Update Service Repair Status' },
-      { id: Permission.PHARMACY_EXPIRED_MANAGE, label: 'Pharmacy Expiry & Batch Control' },
-      { id: Permission.WHOLESALE_DISPATCH, label: 'Wholesale Sales Orders & Delivery Challans' }
-    ]
+export function getDomainPermissionGroups(businessType?: string) {
+  const domain = (businessType as BusinessType) || BusinessType.RETAIL;
+  const groups: { groupName: string; permissions: { id: Permission; label: string }[] }[] = [
+    {
+      groupName: 'Dashboard & Reports',
+      permissions: [
+        { id: Permission.REPORT_SALES, label: 'View Sales Analytics & Realtime Pulse' },
+        { id: Permission.REPORT_FINANCIAL, label: 'View Financial Balance Reports' },
+        { id: Permission.REPORT_INVENTORY, label: 'View Stock & Inventory Reports' },
+        { id: Permission.REPORT_TAX_GST, label: 'View GST Tax Ledger Reports' }
+      ]
+    },
+    {
+      groupName: 'Fast POS & Cashier Shifts',
+      permissions: [
+        { id: Permission.POS_ACCESS, label: 'Access Fast Billing POS Terminal' },
+        { id: Permission.POS_CREATE_BILL, label: 'Generate & Print POS Counter Bills' },
+        { id: Permission.POS_APPLY_DISCOUNT, label: 'Apply Manual Discounts at Checkout' },
+        { id: Permission.POS_HOLD_RECALL, label: 'Hold and Recall Active POS Orders' },
+        { id: Permission.POS_OVERRIDE_PRICE, label: 'Manual Unit Price Override' },
+        { id: Permission.SHIFT_OPEN, label: 'Open & Manage Cashier Shift' },
+        { id: Permission.SHIFT_CLOSE, label: 'Close Shift & Reconcile Drawer Cash' },
+        { id: Permission.SHIFT_VIEW_ALL, label: 'View All Branch Shifts' }
+      ]
+    },
+    {
+      groupName: 'Products & Inventory',
+      permissions: [
+        { id: Permission.PRODUCT_VIEW, label: 'View Products & Price Lists' },
+        { id: Permission.PRODUCT_CREATE, label: 'Create New Products' },
+        { id: Permission.PRODUCT_UPDATE, label: 'Edit Product Pricing & Details' },
+        { id: Permission.PRODUCT_DELETE, label: 'Delete Products' },
+        { id: Permission.STOCK_VIEW, label: 'View Stock Balances & Ledger' },
+        { id: Permission.STOCK_ADJUST, label: 'Perform Manual Stock Adjustments' },
+        { id: Permission.STOCK_TRANSFER, label: 'Inter-Branch Stock Transfers' }
+      ]
+    },
+    {
+      groupName: 'Quotations & Invoices',
+      permissions: [
+        { id: Permission.QUOTATION_VIEW, label: 'View Quotations & Estimates' },
+        { id: Permission.QUOTATION_CREATE, label: 'Create & Edit Quotations' },
+        { id: Permission.QUOTATION_CONVERT, label: 'Convert Quotations to Invoices' },
+        { id: Permission.INVOICE_VIEW, label: 'View Invoices & Sales Bills' },
+        { id: Permission.INVOICE_CREATE, label: 'Generate Official Invoices' },
+        { id: Permission.INVOICE_CANCEL, label: 'Void / Cancel Finalized Invoices' }
+      ]
+    },
+    {
+      groupName: 'Payments & Receipts',
+      permissions: [
+        { id: Permission.PAYMENT_COLLECT, label: 'Collect Cash, UPI & Card Payments' },
+        { id: Permission.RECEIPT_REPRINT, label: 'Reprint Thermal Payment Receipts' }
+      ]
+    },
+    {
+      groupName: 'Customers & Suppliers',
+      permissions: [
+        { id: Permission.CUSTOMER_VIEW, label: 'View Customers Directory' },
+        { id: Permission.CUSTOMER_CREATE, label: 'Add & Register Customers' },
+        { id: Permission.CUSTOMER_UPDATE, label: 'Edit Customer Master Records' },
+        { id: Permission.CUSTOMER_CREDIT_MANAGE, label: 'Manage Customer Credit Limits' },
+        { id: Permission.SUPPLIER_VIEW, label: 'View Suppliers & Purchase Orders' },
+        { id: Permission.SUPPLIER_CREATE, label: 'Create Vendors Master Records' },
+        { id: Permission.PO_CREATE, label: 'Issue Purchase Orders' },
+        { id: Permission.GRN_CREATE, label: 'Receive Goods (GRN Stock Intake)' }
+      ]
+    },
+    {
+      groupName: 'Team, Outlets & Settings',
+      permissions: [
+        { id: Permission.USER_VIEW, label: 'View Team Members' },
+        { id: Permission.USER_CREATE, label: 'Create & Onboard Staff Accounts' },
+        { id: Permission.USER_UPDATE, label: 'Edit Staff Roles & Outlets' },
+        { id: Permission.ROLE_VIEW, label: 'View Roles & Permission Matrix' },
+        { id: Permission.ROLE_CREATE, label: 'Create Custom Roles' },
+        { id: Permission.ROLE_UPDATE, label: 'Modify Role Permissions' },
+        { id: Permission.BRANCH_VIEW, label: 'View Stores & Outlets' },
+        { id: Permission.BRANCH_CREATE, label: 'Create New Branch Outlets' },
+        { id: Permission.BRANCH_UPDATE, label: 'Edit Store Outlets & Registers' },
+        { id: Permission.ORG_VIEW, label: 'View Organization Profile' },
+        { id: Permission.ORG_UPDATE, label: 'Modify Business Settings & GST Configuration' }
+      ]
+    }
+  ];
+
+  // Domain-specific permissions group
+  if (domain === BusinessType.RESTAURANT) {
+    groups.push({
+      groupName: 'Restaurant Operations & Kitchen',
+      permissions: [
+        { id: Permission.RESTAURANT_TABLES, label: 'Manage Restaurant Tables & Dining Floor' },
+        { id: Permission.RESTAURANT_KOT, label: 'Dispatch Orders to Kitchen (KOT)' },
+        { id: Permission.RESTAURANT_KITCHEN, label: 'Kitchen KOT Display Screen (KDS)' }
+      ]
+    });
+  } else if (domain === BusinessType.SERVICE) {
+    groups.push({
+      groupName: 'Service & Repair Operations',
+      permissions: [
+        { id: Permission.SERVICE_JOB_CREATE, label: 'Create Service Repair Job Cards' },
+        { id: Permission.SERVICE_JOB_ASSIGN, label: 'Assign Service Job Cards' },
+        { id: Permission.SERVICE_JOB_UPDATE, label: 'Update Service Repair Status & Work Notes' }
+      ]
+    });
+  } else if (domain === BusinessType.PHARMACY) {
+    groups.push({
+      groupName: 'Pharmacy Control',
+      permissions: [
+        { id: Permission.PHARMACY_EXPIRED_MANAGE, label: 'Pharmacy Expiry & Batch Control' }
+      ]
+    });
+  } else if (domain === BusinessType.WHOLESALE) {
+    groups.push({
+      groupName: 'Wholesale B2B Dispatch',
+      permissions: [
+        { id: Permission.WHOLESALE_DISPATCH, label: 'Wholesale Sales Orders & Delivery Challans' }
+      ]
+    });
   }
-];
+
+  return groups;
+}
 
 interface RolesViewProps {
   roles?: any[];
@@ -111,6 +144,12 @@ export const RolesView: React.FC<RolesViewProps> = ({ roles: propRoles, onRefres
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<any | null>(null);
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>('');
+
+  const { organization } = useAuth();
+  const domain = organization?.businessType || 'RETAIL';
+  const availableTemplates = getDomainRoleTemplates(domain);
+  const permissionGroups = getDomainPermissionGroups(domain);
 
   const fetchInternalRoles = async () => {
     try {
@@ -139,9 +178,11 @@ export const RolesView: React.FC<RolesViewProps> = ({ roles: propRoles, onRefres
   });
 
   const openCreateModal = () => {
+    const defaultTemplate = availableTemplates.find(t => t.roleType === 'MANAGER') || availableTemplates[0];
+    setSelectedTemplateKey(defaultTemplate?.roleType || '');
     setRoleForm({
       name: '',
-      permissions: [
+      permissions: defaultTemplate?.defaultPermissions || [
         Permission.REPORT_SALES,
         Permission.POS_ACCESS,
         Permission.POS_CREATE_BILL,
@@ -150,6 +191,17 @@ export const RolesView: React.FC<RolesViewProps> = ({ roles: propRoles, onRefres
       ]
     });
     setIsAddModalOpen(true);
+  };
+
+  const handleSelectTemplate = (roleTypeKey: string) => {
+    setSelectedTemplateKey(roleTypeKey);
+    const template = availableTemplates.find(t => t.roleType === roleTypeKey);
+    if (template) {
+      setRoleForm(prev => ({
+        name: prev.name || template.name,
+        permissions: template.defaultPermissions
+      }));
+    }
   };
 
   const openEditModal = (role: any) => {
@@ -228,13 +280,15 @@ export const RolesView: React.FC<RolesViewProps> = ({ roles: propRoles, onRefres
           <p className="text-xs text-[#64748B]">Assign precise functional operational permissions across modules.</p>
         </div>
 
-        <button
-          onClick={openCreateModal}
-          className="btn-primary"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>New Custom Role</span>
-        </button>
+        {organization?.businessType !== 'RESTAURANT' && (
+          <button
+            onClick={openCreateModal}
+            className="btn-primary"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Custom Role</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
@@ -324,6 +378,28 @@ export const RolesView: React.FC<RolesViewProps> = ({ roles: propRoles, onRefres
                 />
               </div>
 
+              {isAddModalOpen && (
+                <div>
+                  <label className="block font-semibold text-[#334155] mb-1">
+                    Base Role Template (Preset for {domain})
+                  </label>
+                  <select
+                    value={selectedTemplateKey}
+                    onChange={(e) => handleSelectTemplate(e.target.value)}
+                    className="w-full aescion-input font-medium bg-[#F8FAFC]"
+                  >
+                    {availableTemplates.map((t) => (
+                      <option key={t.roleType} value={t.roleType}>
+                        {t.name} ({t.defaultPermissions.length} permissions) — {t.description}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-[#64748B] mt-1">
+                    Selecting a template pre-populates baseline operational permissions for your {domain} business.
+                  </p>
+                </div>
+              )}
+
               {/* Grouped Permissions Toggles */}
               <div className="space-y-3 pt-2 border-t border-[#EDF1F5]">
                 <div className="flex items-center justify-between">
@@ -331,7 +407,7 @@ export const RolesView: React.FC<RolesViewProps> = ({ roles: propRoles, onRefres
                   <span className="text-[#2563EB] font-semibold">{roleForm.permissions.length} Selected</span>
                 </div>
 
-                {PERMISSION_GROUPS.map((group, gIdx) => {
+                {permissionGroups.map((group, gIdx) => {
                   const groupPermIds = group.permissions.map(p => p.id);
                   const isAllSelected = groupPermIds.every(id => roleForm.permissions.includes(id));
 

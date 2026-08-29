@@ -53,9 +53,9 @@ export default function LoginScreen() {
       setMobileApiUrl(apiUrl.trim());
       const res = await login(identifier.trim(), password);
       if (res.activeRole?.roleType === 'SUPER_ADMIN' || (res.activeRole?.roleType as any) === 'SUPER_ADMIN') {
-        router.replace('/(workspace)/super-admin');
+        router.replace('/(workspace)/super-admin' as any);
       } else {
-        router.replace('/(workspace)/dashboard');
+        router.replace('/(workspace)/dashboard' as any);
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Login failed. Check server connection and credentials.');
@@ -65,7 +65,7 @@ export default function LoginScreen() {
   };
 
   const handleBackToLanding = () => {
-    router.replace('/');
+    router.replace('/' as any);
   };
 
   const handleForgotPassword = () => {
@@ -77,7 +77,7 @@ export default function LoginScreen() {
   };
 
   const handleCreateAccount = () => {
-    router.push('/register');
+    router.push('/register' as any);
   };
 
   return (
